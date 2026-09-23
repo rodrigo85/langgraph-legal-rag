@@ -28,6 +28,8 @@ Este projeto aborda o problema sob a ótica da **Engenharia de Dados Aplicada a 
 3. **Contratos de Dados Estritos com Pydantic**, forçando o modelo a responder em esquemas tipados e auditáveis.
 4. **Auditoria Dupla de Confiabilidade**: Verificadores de fidelidade factual (grounding) e completude de resposta antes de qualquer entrega ao usuário.
 
+> 🚀 **Estudo de Caso Real em Produção**: Confira o documento técnico completo [Estudo de Caso: Autocura com LangGraph e Observabilidade com Dead-Letter Queue](reports/case_study_autocura_e_dlq.md), demonstrando o ciclo real de interrupção de alucinação, rollback do DAG e gravação forense de dados para DPO.
+
 ---
 
 ## 🏗️ Arquitetura do Sistema
