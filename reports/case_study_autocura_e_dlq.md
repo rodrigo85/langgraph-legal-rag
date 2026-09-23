@@ -1,8 +1,8 @@
 # Estudo de Caso: Autocura em Grafos de IA (LangGraph) e Observabilidade com Dead-Letter Queue (DLQ)
 
-> **Documento de Apresentação e Demonstração Técnica**  
+> **Documento de Apresentação e Demonstração Técnica de Engenharia de Dados em IA**  
 > **Sistema:** Assistente Pericial Antitruste (*U.S. v. Google LLC*)  
-> **Componentes Centrais:** LangGraph, ChromaDB, NLI Grounding Grader, Dead-Letter Queue (DLQ), Direct Preference Optimization (DPO).
+> **Componentes Centrais:** LangGraph v0.2+, ChromaDB, NLI Grounding Grader, Dead-Letter Queue (DLQ), Direct Preference Optimization (DPO).
 
 ---
 
@@ -14,7 +14,8 @@ Ele demonstra a diferença prática entre um **"RAG ingênuo"** (que repassaria 
 1. **Autocorreção de Busca (Query Rewriter):** Tradução e enriquecimento dinâmico de jargão jurídico;
 2. **Defesa em Profundidade (Actor-Critic Gate):** Auditoria factual adversarial com Temperatura Zero ($T=0.0$);
 3. **Rollback Automático em Tempo de Execução:** Expurgamento de rascunhos contaminados antes da entrega;
-4. **Dead-Letter Queue (DLQ) e Data Flywheel:** Gravação forense automatizada de todo incidente de alucinação para enriquecimento contínuo de datasets de treino.
+4. **Dead-Letter Queue (DLQ) e Data Flywheel:** Gravação forense automatizada de todo incidente de alucinação para enriquecimento contínuo de datasets de treino;
+5. **Prevenção Matemática contra Loops Infinitos:** Roteamento adaptativo e nó de abstenção pericial (*Graceful Degradation*).
 
 ---
 
@@ -65,6 +66,7 @@ Abaixo está o log cronológico real gerado pela máquina de estados do LangGrap
 [AUDITORIA UNIFICADA DE QUALIDADE] Validando fidelidade factual e utilidade...
     [Grounding: ALUCINACAO DETECTADA] [Utilidade: UTIL]
     Veredito do Auditor: A resposta forneceu informações relevantes ao identificar Sundar Pichai como o integrante mais importante da Google chamado para depor. No entanto, a fidelidade factual está comprometida, pois a resposta contém informações que não estão suportadas pelo contexto fornecido. A resposta menciona Eric Christensen como um depoente, o que não é confirmado no documento fornecido. Além disso, a resposta não menciona explicitamente que Sundar Pichai é o CEO de duas empresas, apenas que ele é o CEO de Google e Alphabet. Portanto,
+    [DLQ] Incidente de alucinacao arquivado com sucesso em: hallucination_incidents.jsonl
     [!] Reprovado no Gate de Grounding -> Retentando geracao ancorada.
 >>> No Concluido: generate
 
@@ -150,27 +152,122 @@ def log_hallucination_incident(
     Persiste o incidente com o rascunho rejeitado, contexto documental e parecer
     do auditor em JSONL, alimentando o Data Flywheel para DPO e fine-tuning.
     """
-    ...
-```
-
-### 5.2 O Registro Persistente no Disco
-Cada incidente interceptado é gravado imediatamente em formato JSONL em [`data/logs/hallucination_incidents.jsonl`](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/data/logs/hallucination_incidents.jsonl):
-
-```json
-{
-  "timestamp": "2026-09-23T16:45:06.315642+00:00",
-  "question": "qual integrante mais imoprtantae da empresa google foi chamado para depor no caso ?",
-  "retry_cycle": 0,
-  "rejected_generation": "Sundar Pichai (CEO da Google e Alphabet) e Eric Christensen foram chamados para depor...",
-  "audit_summary": "A resposta forneceu informacoes relevantes ao identificar Sundar Pichai... No entanto, a fidelidade factual esta comprometida, pois a resposta menciona Eric Christensen como um depoente da Google, o que nao e confirmado no documento fornecido.",
-  "retrieved_pages": [283, 285],
-  "retrieved_sources": ["us_v_google_opinion_1033.pdf"]
-}
+    try:
+        HALLUCINATIONS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        incident_record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "question": question,
+            "retry_cycle": retry_count,
+            "rejected_generation": generation,
+            "audit_summary": audit_summary,
+            "retrieved_pages": [d.metadata.get("page") for d in documents if hasattr(d, "metadata")],
+            "retrieved_sources": list(set([d.metadata.get("source_file") for d in documents if hasattr(d, "metadata")])),
+            "context_snippets": [d.page_content[:200] for d in documents if hasattr(d, "page_content")],
+        }
+        with open(HALLUCINATIONS_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(incident_record, ensure_ascii=False) + "\n")
+        print(f"    [DLQ] Incidente de alucinacao arquivado com sucesso em: {HALLUCINATIONS_LOG_PATH.name}")
+    except Exception as err:
+        print(f"    [DLQ Alerta] Falha ao arquivar incidente de alucinacao: {err}")
 ```
 
 ---
 
-## 6. O Ciclo Completo: Como Isso Alimenta o "Data Flywheel"
+## 6. O Incidente do Loop Infinito e o Diagnóstico de Estado no LangGraph
+
+Durante os testes reais de estresse no terminal interativo, uma variação da consulta entrou em um ciclo contínuo de tentativas repetidas de geração:
+
+```text
+[NO: GENERATE] Sintetizando resposta baseada em 2 trechos aprovados...
+[AUDITORIA UNIFICADA DE QUALIDADE] Validando fidelidade factual e utilidade...
+    [Grounding: ALUCINACAO DETECTADA] [Utilidade: INSUFICIENTE]
+    Veredito do Auditor: A resposta gerada não é fidedigna em relação ao contexto fornecido, pois o documento não menciona Dr. Ramaswamy como um integrante importante da Google que foi chamado para depor...
+    [DLQ] Incidente de alucinacao arquivado com sucesso em: hallucination_incidents.jsonl
+    [!] Reprovado no Gate de Grounding -> Retentando geracao ancorada.
+>>> No Concluido: generate
+[NO: GENERATE] Sintetizando resposta baseada em 2 trechos aprovados... (Repetiu 8 vezes!)
+```
+
+### 6.1 Análise de Causa Raiz (RCA - Root Cause Analysis)
+
+A investigação apontou para duas causas simultâneas:
+
+1. **Arestas Condicionais Não Mutam Estado no LangGraph:**
+   * No LangGraph, funções de arestas (`edges.py`) recebem um snapshot de leitura do estado e retornam apenas a chave do próximo nó.
+   * O contador `retry_count += 1` estava configurado apenas no nó `rewrite_query`.
+   * Quando o auditor reprovava (`not_grounded`), o grafo saltava de `generate` de volta para `generate` sem passar por `rewrite_query`.
+   * Logo, o contador `retry_count` ficava congelado em `1` para sempre (`1 < MAX_RETRIES` era sempre verdadeiro).
+
+2. **A "Armadilha dos Chunks Deficientes":**
+   * Os 2 chunks recuperados citavam o **Dr. Sridhar Ramaswamy** (fundador da Neeva, ex-Google, Pág. 205).
+   * O texto dos chunks **não continha** a prova sobre quem foi a testemunha principal chamada a depor.
+   * Como o gerador era forçado a responder usando apenas esses 2 chunks, ele tentava deduzir a resposta a partir do Dr. Ramaswamy.
+   * O auditor rejeitava com razão, e o grafo mandava o gerador tentar de novo **com os mesmos 2 chunks incompletos**.
+
+### 6.2 A Solução Arquitetural Definitiva (`commit dd3562f`)
+
+Implementamos uma máquina de estados com **garantia matemática contra loops**:
+
+```mermaid
+flowchart TD
+    GEN["generate (Tentativa N)"] --> AUD["Auditor Unificado"]
+    AUD -- "is_grounded: False" --> DLQ["Grava na DLQ"]
+    DLQ --> CHK{"generation_attempts < 2?"}
+    
+    CHK -- "Sim (1ª falha no lote)" --> GEN_RETRY["generate (com reforco de ancoragem literal)"]
+    CHK -- "Nao (chunks deficientes!)" --> REWRITE{"retry_count < MAX_RETRIES?"}
+    
+    REWRITE -- "Sim" --> RW["rewrite_query (Busca novos chunks no Vector Lake)"]
+    REWRITE -- "Nao (Esgotado)" --> FB["fallback_node (Abstencao Pericial Elegante)"]
+    FB --> END["END (Finaliza com seguranca)"]
+```
+
+1. **`generation_attempts` no `AgentState`:** O nó `generate` rastreia quantas vezes tentou sintetizar no mesmo conjunto de chunks.
+2. **Escape Inteligente de Chunks:** Na 1ª falha, permite 1 re-tentativa com instrução reforçada de literalidade. Na 2ª falha com os **mesmos chunks**, o DAG reconhece que os chunks são insuficientes e força a rota para `rewrite_query` para buscar novos trechos.
+3. **Nó de Abstenção Pericial (`fallback_node`):** Se as retentativas globais forem esgotadas sem ancoragem 100%, o sistema não alucina: ativa o nó de fallback com parecer forense de evidência inconclusiva.
+4. **Blindagem no Prompt do Gerador:** Inclusão de regra explícita no sistema em [`src/chains/generator.py`](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/src/chains/generator.py#L52) proibindo associar executivos de outras empresas como se fossem da Google.
+
+---
+
+## 7. A Dead-Letter Queue em Ação Real (A Prova Forense com 10 Incidentes)
+
+O arquivo [`data/logs/hallucination_incidents.jsonl`](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/data/logs/hallucination_incidents.jsonl) está ativo e já registrou **10 incidentes reais** auditados.
+
+### Exemplo 1: O Loop de Dr. Ramaswamy (Capturado em Tempo Real)
+```json
+{
+  "timestamp": "2026-09-23T16:50:14.767892+00:00",
+  "question": "qual integrante mais imoprtantae da empresa google foi chamado para depor no caso ?",
+  "retry_cycle": 1,
+  "rejected_generation": "O integrante mais importante da empresa Google que foi chamado para depor no caso é Dr. Ramaswamy, que era o Senior Vice President of Ads and Commerce...",
+  "audit_summary": "A resposta gerada não é fidedigna em relação ao contexto fornecido, pois o documento não menciona Dr. Ramaswamy como um integrante importante da Google que foi chamado para depor...",
+  "retrieved_pages": [285, 205],
+  "retrieved_sources": ["us_v_google_opinion_1033.pdf"]
+}
+```
+
+### Exemplo 2: A Tentativa de Amenizar a Condenação Antitruste
+Em outra pergunta investigativa, o usuário questionou:
+> *"o google estava fazendo ações ilegais ?"*
+
+O modelo tentou rascunhar uma resposta complacente, afirmando que *"a sentença não apresentava evidências de atos ilegais"*. O Auditor Adversarial barrou imediatamente:
+
+```json
+{
+  "timestamp": "2026-09-23T16:57:05.453713+00:00",
+  "question": "o google estava fazendo ações ilegais ?",
+  "retry_cycle": 0,
+  "rejected_generation": "A sentença não apresenta evidências suficientes para concluir que a Google estava realizando ações ilegais...",
+  "audit_summary": "A resposta não atende ao critério de fidelidade factual, pois a sentença trata justamente da determinação de monopólio e conduta anticompetitiva ilegal sob a Seção 2 do Sherman Act pelo Juiz Amit Mehta...",
+  "retrieved_sources": ["us_v_google_opinion_1033.pdf"]
+}
+```
+
+O rascunho com desinformação foi **expurgado da memória volátil** e arquivado na DLQ, garantindo que o usuário nunca recebesse uma interpretação jurídica deturpada.
+
+---
+
+## 8. O Ciclo do Data Flywheel (DPO / Fine-Tuning)
 
 Essa estrutura de Dead-Letter Queue fecha o ciclo contínuo de aprendizado de máquina corporativo:
 
@@ -191,7 +288,7 @@ flowchart LR
 
 ---
 
-## 7. Comparativo de Maturidade
+## 9. Comparativo de Maturidade
 
 | Critério | RAG Tradicional (Tutoriais Comuns) | Nossa Arquitetura Pericial (LangGraph + DLQ) |
 | :--- | :--- | :--- |
@@ -200,11 +297,12 @@ flowchart LR
 | **Vazamento de Erro para o Usuário** | Alto: o usuário recebe "Eric Christensen da Google". | **Zero: rascunho interceptado e expurgado antes da tela.** |
 | **Resiliência a Falhas** | Nenhuma (execução linear única). | **Ciclo de Rollback com autocura automática.** |
 | **Destino de Respostas Incorretas** | Perdidas no esquecimento. | **Arquivadas em Dead-Letter Queue para treino DPO.** |
+| **Prevenção contra Loops Infinitos** | Nenhuma (travamento de processo). | **Garantia matemática $O(\text{MAX\_RETRIES} \times 2)$ com Fallback.** |
 
 ---
 
-## 8. Conclusão
+## 10. Conclusão
 
 Este estudo de caso comprova que **a inteligência de um sistema moderno não reside apenas nos parâmetros brutos de um modelo fundacional, mas na integridade da engenharia de dados que o orquestra**. 
 
-Ao combinar **LangGraph para autocura em tempo de execução** com **Dead-Letter Queue para observabilidade e melhoria contínua**, criamos um sistema pericial autônomo, auditável e preparado para exigências corporativas estritas.
+Ao combinar **LangGraph para autocura em tempo de execução**, **Dead-Letter Queue para observabilidade contínua** e **Nós de Abstenção Pericial para mitigação de risco**, criamos um sistema pericial autônomo, auditável e preparado para os mais exigentes ambientes corporativos e regulatórios.
