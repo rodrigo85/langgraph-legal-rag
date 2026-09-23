@@ -7,8 +7,7 @@ LoRA fine-tune. No model weights have been trained on this dataset yet.
 
 import json
 import random
-from typing import List, Dict, Any
-
+from typing import Any, Dict, List
 
 from legal_rag.config import SILVER_CORPUS_JSONL, TRAINING_DATA_DIR
 
@@ -36,7 +35,7 @@ def extract_key_excerpts() -> List[Dict[str, Any]]:
         raise FileNotFoundError(f"Silver file not found at: {SILVER_CORPUS_JSONL}")
 
     records = []
-    with open(SILVER_CORPUS_JSONL, "r", encoding="utf-8") as f:
+    with open(SILVER_CORPUS_JSONL, encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 records.append(json.loads(line))
@@ -74,47 +73,45 @@ def generate_sft_dataset() -> None:
         {
             "query": "Qual era a taxa de revenue share paga pelo Google a Apple pelo acordo ISA em 2016 e como isso impactava o mercado?",
             "page_match": 114,
-            "response": "Conforme registrado na Sentenca Judicial [Pag. 114], no termo aditivo de 2016 do Information Services Agreement (ISA), o Google concordou em repassar a Apple 36% da receita liquida de publicidade gerada atraves das buscas no Safari. Essa clausula criava um forte desincentivo financeiro para que a Apple desenvolvesse ou adotasse um buscador concorrente, consolidando o monopolio de distribuicao padrao sob a Secao 2 do Sherman Act."
+            "response": "Conforme registrado na Sentenca Judicial [Pag. 114], no termo aditivo de 2016 do Information Services Agreement (ISA), o Google concordou em repassar a Apple 36% da receita liquida de publicidade gerada atraves das buscas no Safari. Essa clausula criava um forte desincentivo financeiro para que a Apple desenvolvesse ou adotasse um buscador concorrente, consolidando o monopolio de distribuicao padrao sob a Secao 2 do Sherman Act.",
         },
         {
             "query": "O que Satya Nadella testemunhou sob juramento sobre o Bing conseguir competir com o Google no iPhone?",
             "page_match": 245,
-            "response": "Em depoimento sob juramento citado na sentenca [Pag. 245], o CEO da Microsoft Satya Nadella afirmou categoricamente que, sem a distribuicao padrao no Safari da Apple, o Bing jamais conseguiria escala suficiente para competir. Nadella declarou que o argumento do Google de que a concorrencia esta a 'apenas um clique de distancia' e uma falacia na pratica corporativa, pois os usuarios raramente alteram o mecanismo de busca pre-instalado."
+            "response": "Em depoimento sob juramento citado na sentenca [Pag. 245], o CEO da Microsoft Satya Nadella afirmou categoricamente que, sem a distribuicao padrao no Safari da Apple, o Bing jamais conseguiria escala suficiente para competir. Nadella declarou que o argumento do Google de que a concorrencia esta a 'apenas um clique de distancia' e uma falacia na pratica corporativa, pois os usuarios raramente alteram o mecanismo de busca pre-instalado.",
         },
         {
             "query": "Como funcionavam os acordos Mobile Application Distribution Agreement (MADA) e RSA no ecossistema Android?",
             "page_match": 113,
-            "response": "De acordo com as determinacoes judiciais [Pag. 113], o Google condicionava o licenciamento do Google Play Store (atraves do MADA) a pre-instalacao obrigatoria de todo o conjunto de aplicativos proprietarios do Google (Google Suite), alem de firmar Revenue Sharing Agreements (RSAs) que concediam porcentagens de faturamento de anuncios aos fabricantes e operadoras apenas se nenhum buscador concorrente fosse pre-instalado no dispositivo."
+            "response": "De acordo com as determinacoes judiciais [Pag. 113], o Google condicionava o licenciamento do Google Play Store (atraves do MADA) a pre-instalacao obrigatoria de todo o conjunto de aplicativos proprietarios do Google (Google Suite), alem de firmar Revenue Sharing Agreements (RSAs) que concediam porcentagens de faturamento de anuncios aos fabricantes e operadoras apenas se nenhum buscador concorrente fosse pre-instalado no dispositivo.",
         },
         {
             "query": "Qual foi a conclusao juridica final do Juiz Amit Mehta sobre o mercado relevante de buscas gerais em texto?",
             "page_match": 286,
-            "response": "Na decisao final de merito [Pag. 286], o tribunal concluiu que o Google e detentor de monopolio no mercado relevante de servicos gerais de busca e anuncios de texto de busca geral (general search text ads), tendo mantido seu poder monopolista de forma anticompetitiva atraves de acordos exclusivos de distribuicao, em violacao direta a Secao 2 do Sherman Act."
+            "response": "Na decisao final de merito [Pag. 286], o tribunal concluiu que o Google e detentor de monopolio no mercado relevante de servicos gerais de busca e anuncios de texto de busca geral (general search text ads), tendo mantido seu poder monopolista de forma anticompetitiva atraves de acordos exclusivos de distribuicao, em violacao direta a Secao 2 do Sherman Act.",
         },
         {
             "query": "Qual o valor financeiro estimado que o Google desembolsou em acordos de distribuicao de busca em 2021?",
             "page_match": 115,
-            "response": "Conforme evidenciado nos relatorios financeiros desclassificados durante o julgamento [Pag. 115], o Google pagou mais de US$ 26 bilhoes apenas no ano de 2021 para garantir o status de mecanismo de busca padrao em navegadores e dispositivos parceiros, sendo a maior fatia destinada a Apple pelo contrato ISA."
-        }
+            "response": "Conforme evidenciado nos relatorios financeiros desclassificados durante o julgamento [Pag. 115], o Google pagou mais de US$ 26 bilhoes apenas no ano de 2021 para garantir o status de mecanismo de busca padrao em navegadores e dispositivos parceiros, sendo a maior fatia destinada a Apple pelo contrato ISA.",
+        },
     ]
 
     for scenario in sft_scenarios:
         instruction = random.choice(INSTRUCTION_TEMPLATES)
-        dataset_samples.append({
-            "instruction": instruction,
-            "input": scenario["query"],
-            "output": scenario["response"]
-        })
+        dataset_samples.append({"instruction": instruction, "input": scenario["query"], "output": scenario["response"]})
 
     # Expand with variations built from the identified pages
     for p in pages[:45]:
         page_num = p["page"]
         text_snippet = p["content"][:400].replace("\n", " ")
-        dataset_samples.append({
-            "instruction": "Atue como perito judicial no caso antitruste U.S. v. Google e responda com citacao estrita de fontes.",
-            "input": f"Com base na pagina {page_num} da sentenca, sintetize as evidencias contratuais discutidas neste trecho: '{text_snippet[:150]}...'",
-            "output": f"Segundo a analise do tribunal registrada na [Pag. {page_num} da Sentenca], as provas desclassificadas comprovam que: {text_snippet}. Este fato corrobora o controle exercido pelo Google sobre os canais primarios de distribuicao."
-        })
+        dataset_samples.append(
+            {
+                "instruction": "Atue como perito judicial no caso antitruste U.S. v. Google e responda com citacao estrita de fontes.",
+                "input": f"Com base na pagina {page_num} da sentenca, sintetize as evidencias contratuais discutidas neste trecho: '{text_snippet[:150]}...'",
+                "output": f"Segundo a analise do tribunal registrada na [Pag. {page_num} da Sentenca], as provas desclassificadas comprovam que: {text_snippet}. Este fato corrobora o controle exercido pelo Google sobre os canais primarios de distribuicao.",
+            }
+        )
 
     random.shuffle(dataset_samples)
 
@@ -151,4 +148,3 @@ def generate_sft_dataset() -> None:
 
 if __name__ == "__main__":
     generate_sft_dataset()
-

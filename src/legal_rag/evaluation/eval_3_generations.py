@@ -10,20 +10,19 @@ sectioned structure. Citations are checked for FORMAT only, not page validity
 (the test context has no page numbers).
 """
 
+import re
 import sys
 import time
-import re
-from typing import Dict, Any, List
-
+from typing import Any, Dict, List
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage
+from langchain_ollama import ChatOllama
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 from legal_rag.config import OLLAMA_BASE_URL, REPORTS_DIR
 
@@ -36,26 +35,26 @@ TEST_PROMPTS = [
         "id": "T1_ISA_APPLE",
         "question": "Qual era a porcentagem da receita que o Google repassava para a Apple no contrato ISA em 2016 e qual a sua motivacao concorrencial?",
         "expected_terms": ["36%", "isa", "apple", "safari", "sherman"],
-        "context_doc": "In 2016, Apple and Google amended the ISA. Under the 2016 amendment, Google paid Apple 36% of net revenue from Safari queries. The agreement created a powerful disincentive for Apple to develop its own search engine."
+        "context_doc": "In 2016, Apple and Google amended the ISA. Under the 2016 amendment, Google paid Apple 36% of net revenue from Safari queries. The agreement created a powerful disincentive for Apple to develop its own search engine.",
     },
     {
         "id": "T2_NADELLA_TESTIMONY",
         "question": "O que Satya Nadella (Microsoft) testemunhou sobre a teoria do Google de que a concorrencia esta a 'apenas um clique de distancia'?",
         "expected_terms": ["satya nadella", "microsoft", "bing", "default", "escala"],
-        "context_doc": "Microsoft CEO Satya Nadella testified that Google's claim that competition is 'one click away' is a complete fiction in practice. Without default status on Apple devices, Bing cannot achieve the query scale needed to compete."
+        "context_doc": "Microsoft CEO Satya Nadella testified that Google's claim that competition is 'one click away' is a complete fiction in practice. Without default status on Apple devices, Bing cannot achieve the query scale needed to compete.",
     },
     {
         "id": "T3_ANDROID_MADA",
         "question": "O que sao os acordos MADA e RSA que o Google impunha aos fabricantes de smartphones Android?",
         "expected_terms": ["mada", "rsa", "google play", "pre-instalacao", "exclusividade"],
-        "context_doc": "Google used Mobile Application Distribution Agreements (MADAs) to mandate preinstallation of the entire Google Suite, and Revenue Share Agreements (RSAs) to condition payments on device makers not preinstalling rival search engines."
+        "context_doc": "Google used Mobile Application Distribution Agreements (MADAs) to mandate preinstallation of the entire Google Suite, and Revenue Share Agreements (RSAs) to condition payments on device makers not preinstalling rival search engines.",
     },
     {
         "id": "T4_SHERMAN_VERDICT",
         "question": "Qual foi a conclusao final do Juiz Amit Mehta sobre o monopolio do Google sob a Secao 2 do Sherman Act?",
         "expected_terms": ["secao 2", "sherman", "monopolio", "buscas gerais", "amit mehta"],
-        "context_doc": "Judge Amit Mehta concluded that Google is a monopolist in general search services and general search text ads, and has maintained its monopoly through anticompetitive exclusive distribution agreements in violation of Section 2 of the Sherman Act."
-    }
+        "context_doc": "Judge Amit Mehta concluded that Google is a monopolist in general search services and general search text ads, and has maintained its monopoly through anticompetitive exclusive distribution agreements in violation of Section 2 of the Sherman Act.",
+    },
 ]
 
 
@@ -113,7 +112,7 @@ def run_3_generations_benchmark():
             "[bold cyan]3-GENERATION BENCHMARK: SAME BASE MODEL, DIFFERENT MODELFILES[/bold cyan]\n"
             "[white]Gen 0: Base model | Gen 1: Modelfile v1 | Gen 2: Modelfile v2 (structured prompt)\n"
             "Hardware: NVIDIA GeForce RTX 2060 (full VRAM offload)[/white]",
-            border_style="cyan"
+            border_style="cyan",
         )
     )
 
@@ -191,10 +190,10 @@ def generate_3gen_svg(g0: float, g1: float, g2: float):
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="100%">
   <rect width="{width}" height="{height}" fill="#0d1117" rx="10"/>
 
-  <text x="{width/2}" y="36" fill="#58a6ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="16" font-weight="bold" text-anchor="middle">
+  <text x="{width / 2}" y="36" fill="#58a6ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="16" font-weight="bold" text-anchor="middle">
     Heuristic Score by Model Configuration (4 domain scenarios)
   </text>
-  <text x="{width/2}" y="56" fill="#8b949e" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" text-anchor="middle">
+  <text x="{width / 2}" y="56" fill="#8b949e" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" text-anchor="middle">
     Same base model (Qwen 2.5 7B) | [Pag. N] citation format + expected terms + structure
   </text>
 
@@ -208,13 +207,13 @@ def generate_3gen_svg(g0: float, g1: float, g2: float):
   <text x="80" y="195" fill="#e6edf3" font-size="13" font-weight="bold">Generation 1: Modelfile v1 - domain prompt (antitrust-specialist)</text>
   <rect x="80" y="205" width="450" height="32" fill="#21262d" rx="6"/>
   <rect x="80" y="205" width="{g1 * 4.5:.1f}" height="32" fill="#a371f7" rx="6"/>
-  <text x="{80 + g1 * 4.5 + 15}" y="226" fill="#a371f7" font-size="14" font-weight="bold">{g1:.1f} / 100 ({(g1-g0):+.1f})</text>
+  <text x="{80 + g1 * 4.5 + 15}" y="226" fill="#a371f7" font-size="14" font-weight="bold">{g1:.1f} / 100 ({(g1 - g0):+.1f})</text>
 
   <!-- Gen 2: Modelfile v2 -->
   <text x="80" y="275" fill="#e6edf3" font-size="13" font-weight="bold">Generation 2: Modelfile v2 - structured prompt (antitrust-specialist-v2)</text>
   <rect x="80" y="285" width="450" height="32" fill="#21262d" rx="6"/>
   <rect x="80" y="285" width="{g2 * 4.5:.1f}" height="32" fill="#2ea043" rx="6"/>
-  <text x="{80 + g2 * 4.5 + 15}" y="306" fill="#2ea043" font-size="14" font-weight="bold">{g2:.1f} / 100 ({(g2-g0):+.1f})</text>
+  <text x="{80 + g2 * 4.5 + 15}" y="306" fill="#2ea043" font-size="14" font-weight="bold">{g2:.1f} / 100 ({(g2 - g0):+.1f})</text>
 </svg>"""
 
     with open(CHART_3GEN_SVG, "w", encoding="utf-8") as f:
@@ -227,29 +226,31 @@ def update_reports_markdown(all_results, g0, g1, g2, c0, c1, c2):
     for r in all_results:
         gain = r["gen2"]["score"] - r["gen0"]["score"]
         cited = "Sim" if r["gen2"]["has_citation"] else "Não"
-        rows_md.append(f"| **{r['id']}** | {r['gen0']['score']}/100 | {r['gen1']['score']}/100 | **{r['gen2']['score']}/100** | {cited} | **{gain:+d} pts** |")
+        rows_md.append(
+            f"| **{r['id']}** | {r['gen0']['score']}/100 | {r['gen1']['score']}/100 | **{r['gen2']['score']}/100** | {cited} | **{gain:+d} pts** |"
+        )
 
     deep_dives = []
     for r in all_results:
         deep_dives.append(f"""
-### 🔍 Cenário {r['id']}
-**Pergunta:** *{r['question']}*
+### 🔍 Cenário {r["id"]}
+**Pergunta:** *{r["question"]}*
 
 <details>
 <summary><b>Respostas das 3 configurações (clique para expandir)</b></summary>
 
-#### 🔴 Geração 0: Modelo Base (Nota {r['gen0']['score']}/100)
-> {r['gen0']['text']}
+#### 🔴 Geração 0: Modelo Base (Nota {r["gen0"]["score"]}/100)
+> {r["gen0"]["text"]}
 
-#### 🟣 Geração 1: Modelfile v1 (Nota {r['gen1']['score']}/100)
-> {r['gen1']['text']}
+#### 🟣 Geração 1: Modelfile v1 (Nota {r["gen1"]["score"]}/100)
+> {r["gen1"]["text"]}
 
-#### 🟢 Geração 2: Modelfile v2 (Nota {r['gen2']['score']}/100)
-> {r['gen2']['text']}
+#### 🟢 Geração 2: Modelfile v2 (Nota {r["gen2"]["score"]}/100)
+> {r["gen2"]["text"]}
 
 **Auditoria:**
-- Citação no formato `[Pág. N]` na Gen 2: **{'Sim' if r['gen2']['has_citation'] else 'Não'}** (formato, não validade da página)
-- Evolução total: **{r['gen2']['score'] - r['gen0']['score']:+d} pontos**
+- Citação no formato `[Pág. N]` na Gen 2: **{"Sim" if r["gen2"]["has_citation"] else "Não"}** (formato, não validade da página)
+- Evolução total: **{r["gen2"]["score"] - r["gen0"]["score"]:+d} pontos**
 </details>
 """)
 
@@ -268,7 +269,7 @@ Este relatório compara **três configurações do mesmo modelo base** (`qwen2.5
 
 | Métrica | Geração 0 (Base) | Geração 1 (Modelfile v1) | Geração 2 (Modelfile v2) | Ganho Total |
 | :--- | :---: | :---: | :---: | :---: |
-| **Score heurístico médio (0-100)** | **{g0:.1f} pts** | **{g1:.1f} pts** | **{g2:.1f} pts** | **{(g2 - g0):+.1f} pontos ({((g2 - g0)/g0)*100:+.1f}%)** |
+| **Score heurístico médio (0-100)** | **{g0:.1f} pts** | **{g1:.1f} pts** | **{g2:.1f} pts** | **{(g2 - g0):+.1f} pontos ({((g2 - g0) / g0) * 100:+.1f}%)** |
 | **Respostas com citação no formato `[Pág. N]`** | **{c0:.0f}%** | **{c1:.0f}%** | **{c2:.0f}%** | **{c2 - c0:+.0f} p.p.** |
 
 > **Como o score é calculado:** 40% presença de citação no formato `[Pág. N]`, 40% cobertura de termos esperados, 20% estrutura em seções. Amostra de 4 cenários, temperatura 0.

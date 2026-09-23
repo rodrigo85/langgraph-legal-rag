@@ -21,9 +21,7 @@ class ProviderNotInstalledError(RuntimeError):
 
 
 def _missing(extra: str, package: str) -> ProviderNotInstalledError:
-    return ProviderNotInstalledError(
-        f"Provider requires '{package}'. Install it with: pip install '.[{extra}]'"
-    )
+    return ProviderNotInstalledError(f"Provider requires '{package}'. Install it with: pip install '.[{extra}]'")
 
 
 def get_chat_model(

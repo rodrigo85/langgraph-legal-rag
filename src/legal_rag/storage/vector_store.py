@@ -51,9 +51,9 @@ def count_vectors(store: VectorStore) -> int:
         if collection is None:
             return 0
         return session.execute(
-            select(func.count()).select_from(store.EmbeddingStore).where(
-                store.EmbeddingStore.collection_id == collection.uuid
-            )
+            select(func.count())
+            .select_from(store.EmbeddingStore)
+            .where(store.EmbeddingStore.collection_id == collection.uuid)
         ).scalar_one()
 
 

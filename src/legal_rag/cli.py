@@ -4,26 +4,31 @@ Interactive CLI for the self-correcting RAG agent (DOJ v. Google).
 
 import sys
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-
-
 from rich.console import Console
-from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.panel import Panel
 from rich.prompt import Prompt
 
 from legal_rag.agent.graph import build_graph
+from legal_rag.config import get_settings
+from legal_rag.observability import configure_logging
 
 console = Console()
 
 
 def run_cli():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # Windows terminals default to a legacy code page
+    configure_logging()
+    settings = get_settings()
+
     console.print(
         Panel.fit(
             "[bold cyan]Self-Correcting RAG Agent (Self-RAG) - U.S. v. Google[/bold cyan]\n"
-            "[white]Judge Amit Mehta's Memorandum Opinion on liability (Doc 1033 - 286 pages)\n"
-            "Architecture: LangGraph + ChromaDB + Ollama (Local)[/white]",
+            "[white]Court record: DOJ Complaint (Doc 1), Liability Opinion (Doc 1033), "
+            "Remedies Opinion (Doc 1062)\n"
+            f"Architecture: LangGraph + vector store '{settings.vector_store}' + LLM provider "
+            f"'{settings.llm_provider}' (set VECTOR_STORE / LLM_PROVIDER)[/white]",
             border_style="cyan",
         )
     )
@@ -55,8 +60,9 @@ def run_cli():
                 "current_query": question,
                 "documents": [],
                 "generation": "",
+                "generation_attempts": 0,
                 "retry_count": 0,
-                "max_retries": 3,
+                "max_retries": settings.max_retries,
                 "web_search_needed": False,
                 "hallucination_verdict": None,
                 "answer_verdict": None,
@@ -64,16 +70,22 @@ def run_cli():
             }
 
             console.print("\n[bold cyan]=== STARTING GRAPH EXECUTION ===[/bold cyan]")
-            
+
             final_state = dict(initial_state)
             for output in app.stream(initial_state):
                 for node_name, state_update in output.items():
                     console.print(f"[bold magenta]>>> Node completed: {node_name}[/bold magenta]")
                     final_state.update(state_update)
-            
+
             console.print("\n" + "=" * 60)
-            console.print(Panel(Markdown(final_state.get("generation", "Sem resposta")), title="[bold green]Resposta Auditada e Fundamentada[/bold green]", border_style="green"))
-            
+            console.print(
+                Panel(
+                    Markdown(final_state.get("generation", "Sem resposta")),
+                    title="[bold green]Resposta Auditada e Fundamentada[/bold green]",
+                    border_style="green",
+                )
+            )
+
             citations = final_state.get("citations", [])
             if citations:
                 console.print(f"[bold yellow]Paginas citadas da Sentenca:[/bold yellow] {', '.join(citations)}")

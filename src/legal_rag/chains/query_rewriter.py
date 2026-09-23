@@ -4,20 +4,19 @@ Rewrites vague or informally worded investigative questions into the formal lega
 and contractual terminology of the U.S. v. Google antitrust case.
 """
 
-from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 
 from legal_rag.providers import get_chat_model
 
 
 class RewrittenQuery(BaseModel):
     """Modelo de dados para a query otimizada."""
+
     improved_query: str = Field(
         description="A pergunta reescrita em termos tecnicos judiciais, nomes proprios e termos contratuais em ingles."
     )
-    rationale: str = Field(
-        description="O motivo da reescrita e quais entidades juridicas/termos foram inseridos."
-    )
+    rationale: str = Field(description="O motivo da reescrita e quais entidades juridicas/termos foram inseridos.")
 
 
 def create_query_rewriter():
@@ -35,10 +34,15 @@ O documento original esta em ingles e contem jargoes tecnicos especificos como:
 
 Sua tarefa e pegar a pergunta do usuario (que pode estar em portugues e ser informal) e reescreve-la em termos precisos de busca (em ingles com palavras-chave contratuais) para que o banco vetorial localize as paginas e clausulas exatas da sentenca."""
 
-    re_write_prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Pergunta original: {question}\n\nReescreva esta query com termos contratuais e nomes proprios adequados:"),
-    ])
+    re_write_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            (
+                "human",
+                "Pergunta original: {question}\n\nReescreva esta query com termos contratuais e nomes proprios adequados:",
+            ),
+        ]
+    )
 
     structured_llm = llm.with_structured_output(RewrittenQuery)
     return re_write_prompt | structured_llm

@@ -1,5 +1,5 @@
 """
-Automated test for the Self-Corrective RAG Agent.
+End-to-end test for the self-correcting RAG agent (requires Ollama and an indexed Gold layer).
 Runs an investigative query through the LangGraph graph and validates:
 1. Retrieval of court-document chunks
 2. Filtering by the Document Grader
@@ -7,18 +7,15 @@ Runs an investigative query through the LangGraph graph and validates:
 4. Passing hallucination audit
 """
 
-import sys
-
-# Configure UTF-8 encoding for the Windows terminal
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-
+import pytest
 
 from legal_rag.agent.graph import build_graph
 
+pytestmark = pytest.mark.integration
+
 
 def test_agent_run():
-    print("[*] Starting LangGraph graph test...")
+    # Hallucination incidents go to a per-test file (see tests/conftest.py).
     app = build_graph()
 
     test_question = (
@@ -31,6 +28,7 @@ def test_agent_run():
         "current_query": test_question,
         "documents": [],
         "generation": "",
+        "generation_attempts": 0,
         "retry_count": 0,
         "max_retries": 3,
         "web_search_needed": False,
@@ -39,20 +37,7 @@ def test_agent_run():
         "citations": [],
     }
 
-    print(f"[*] Test question: {test_question}")
     result = app.invoke(initial_state)
-
-    print("\n" + "=" * 50)
-    print("[*] GENERATION RESULT:")
-    print(result.get("generation"))
-    print("\n[*] CITATIONS FOUND:")
-    print(result.get("citations"))
-    print("=" * 50)
 
     assert result.get("generation") is not None
     assert len(result.get("generation")) > 50
-    print("[PASS] Test completed successfully!")
-
-
-if __name__ == "__main__":
-    test_agent_run()

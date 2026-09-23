@@ -5,14 +5,16 @@ is directly supported by the retrieved documents (Grounding Check).
 """
 
 from typing import Literal
-from pydantic import BaseModel, Field
+
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 
 from legal_rag.providers import get_chat_model
 
 
 class GradeHallucinations(BaseModel):
     """Modelo de dados para a auditoria de alucinacao / ancoragem."""
+
     binary_score: Literal["yes", "no"] = Field(
         description="A resposta esta estritamente ancorada nos fatos fornecidos? 'yes' (sem alucinacao) ou 'no' (ha alucinacao ou invencao de dados)"
     )
@@ -37,10 +39,15 @@ Criterios:
 
 Seja rigoroso: fatos nao mencionados nos trechos devem ser considerados alucinacao."""
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Trechos dos Documentos Fornecidos:\n{documents}\n\nResposta Gerada:\n{generation}\n\nAvalie se a resposta e fiel aos documentos:"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            (
+                "human",
+                "Trechos dos Documentos Fornecidos:\n{documents}\n\nResposta Gerada:\n{generation}\n\nAvalie se a resposta e fiel aos documentos:",
+            ),
+        ]
+    )
 
     structured_llm = llm.with_structured_output(GradeHallucinations)
     return prompt | structured_llm
@@ -48,15 +55,14 @@ Seja rigoroso: fatos nao mencionados nos trechos devem ser considerados alucinac
 
 class UnifiedQualityAudit(BaseModel):
     """Auditoria consolidada de fidelidade factual (grounding) e utilidade da resposta."""
+
     is_grounded: Literal["yes", "no"] = Field(
         description="A resposta esta 100% ancorada nos documentos fornecidos, sem inventar fatos ou numeros? 'yes' ou 'no'"
     )
     is_useful: Literal["yes", "no"] = Field(
         description="A resposta atende e resolve a duvida investigativa do usuario de forma pertinente? 'yes' ou 'no'"
     )
-    audit_summary: str = Field(
-        description="Resumo do veredito (1 linha) em portugues."
-    )
+    audit_summary: str = Field(description="Resumo do veredito (1 linha) em portugues.")
 
 
 def create_unified_quality_grader():
@@ -79,10 +85,15 @@ Sua missao e auditar a resposta gerada sob dois criterios rigorosos:
 
 Escreva o resumo ('audit_summary') em portugues."""
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Contexto Documental:\n{documents}\n\nPergunta do Usuario:\n{question}\n\nResposta Gerada:\n{generation}\n\nAvalie a fidelidade e a utilidade da resposta:"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            (
+                "human",
+                "Contexto Documental:\n{documents}\n\nPergunta do Usuario:\n{question}\n\nResposta Gerada:\n{generation}\n\nAvalie a fidelidade e a utilidade da resposta:",
+            ),
+        ]
+    )
 
     structured_llm = llm.with_structured_output(UnifiedQualityAudit)
     return prompt | structured_llm

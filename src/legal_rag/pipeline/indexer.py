@@ -35,7 +35,7 @@ def chunk_silver_documents(
         chunk_overlap=chunk_overlap,
         separators=["\n\n", "\n", ". ", " ", ""],
     )
-    
+
     raw_chunks = splitter.split_documents(silver_docs)
     enriched_chunks: List[Document] = []
 

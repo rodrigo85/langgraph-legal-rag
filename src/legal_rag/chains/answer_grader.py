@@ -4,17 +4,17 @@ Checks whether the generated answer actually addresses the user's original quest
 """
 
 from typing import Literal
-from pydantic import BaseModel, Field
+
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 
 from legal_rag.providers import get_chat_model
 
 
 class GradeAnswer(BaseModel):
     """Modelo de dados para a avaliacao de utilidade da resposta."""
-    binary_score: Literal["yes", "no"] = Field(
-        description="A resposta resolve a pergunta do usuario? 'yes' ou 'no'"
-    )
+
+    binary_score: Literal["yes", "no"] = Field(description="A resposta resolve a pergunta do usuario? 'yes' ou 'no'")
     explanation: str = Field(
         description="Breve explicacao do motivo pelo qual a resposta atendeu ou nao ao questionamento."
     )
@@ -35,10 +35,15 @@ Criterios:
 
 Responda no formato estruturado."""
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Pergunta do Usuario:\n{question}\n\nResposta Fornecida:\n{generation}\n\nAvalie se a pergunta foi respondida com sucesso:"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            (
+                "human",
+                "Pergunta do Usuario:\n{question}\n\nResposta Fornecida:\n{generation}\n\nAvalie se a pergunta foi respondida com sucesso:",
+            ),
+        ]
+    )
 
     structured_llm = llm.with_structured_output(GradeAnswer)
     return prompt | structured_llm

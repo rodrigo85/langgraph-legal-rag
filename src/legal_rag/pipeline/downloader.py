@@ -10,12 +10,11 @@ of the official court documents in U.S. v. Google LLC (2020 to 2025):
 import sys
 import urllib.request
 from pathlib import Path
-from typing import Dict, Any
-
+from typing import Any, Dict
 
 from legal_rag.config import (
-    OPINION_PDF_PATH,
     COMPLAINT_PDF_PATH,
+    OPINION_PDF_PATH,
     REMEDIES_PDF_PATH,
 )
 
@@ -52,7 +51,7 @@ def download_single_document(doc_info: Dict[str, Any]) -> Path:
     target_path = Path(doc_info["target_path"])
     url = doc_info["url"]
     title = doc_info["title"]
-    
+
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
     if target_path.exists() and target_path.stat().st_size > 100_000:
@@ -64,9 +63,7 @@ def download_single_document(doc_info: Dict[str, Any]) -> Path:
     print(f"         URL: {url}")
     print(f"         Destination: {target_path.name}")
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) DataEngineeringPipeline/1.0"
-    }
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) DataEngineeringPipeline/1.0"}
 
     req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=30) as response, open(target_path, "wb") as out_file:

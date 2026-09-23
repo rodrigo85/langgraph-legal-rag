@@ -5,20 +5,18 @@ related to the user's investigative question.
 """
 
 from typing import Literal
-from pydantic import BaseModel, Field
+
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 
 from legal_rag.providers import get_chat_model
 
 
 class GradeDocuments(BaseModel):
     """Modelo de dados para a avaliacao de relevancia do documento."""
-    binary_score: Literal["yes", "no"] = Field(
-        description="O documento e relevante para a questao? 'yes' ou 'no'"
-    )
-    reason: str = Field(
-        description="Breve explicacao (1 linha) do motivo pelo qual e ou nao e relevante."
-    )
+
+    binary_score: Literal["yes", "no"] = Field(description="O documento e relevante para a questao? 'yes' ou 'no'")
+    reason: str = Field(description="Breve explicacao (1 linha) do motivo pelo qual e ou nao e relevante.")
 
 
 def create_doc_grader():
@@ -37,10 +35,12 @@ Avalie com o seguinte criterio:
 
 Responda estritamente no formato estruturado solicitado."""
 
-    grader_prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Trecho do Documento:\n\n{document}\n\nPergunta do Usuario: {question}"),
-    ])
+    grader_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "Trecho do Documento:\n\n{document}\n\nPergunta do Usuario: {question}"),
+        ]
+    )
 
     structured_llm = llm.with_structured_output(GradeDocuments)
     return grader_prompt | structured_llm
@@ -48,12 +48,11 @@ Responda estritamente no formato estruturado solicitado."""
 
 class BatchGradeDocuments(BaseModel):
     """Modelo de dados para a avaliacao em lote (batch) de múltiplos chunks."""
+
     relevant_indices: list[int] = Field(
         description="Lista contendo os numeros (indices) dos trechos relevantes (ex: [1, 3] ou [2, 4]). Se nenhum for relevante, envie []."
     )
-    rationale: str = Field(
-        description="Breve explicacao (1 linha) da selecao dos trechos relevantes."
-    )
+    rationale: str = Field(description="Breve explicacao (1 linha) da selecao dos trechos relevantes.")
 
 
 def create_batch_doc_grader():
@@ -72,10 +71,12 @@ Instrucoes:
 - Se nenhum contiver informacoes pertinentes, retorne lista vazia [].
 - Escreva a justificativa ('rationale') concisamente em portugues."""
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Pergunta Investigativa:\n{question}\n\nTrechos Recuperados:\n{documents_batch}"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "Pergunta Investigativa:\n{question}\n\nTrechos Recuperados:\n{documents_batch}"),
+        ]
+    )
 
     structured_llm = llm.with_structured_output(BatchGradeDocuments)
     return prompt | structured_llm

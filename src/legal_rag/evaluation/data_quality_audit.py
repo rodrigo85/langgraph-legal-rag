@@ -7,24 +7,24 @@ Runs formal integrity tests across the layers:
 Generates the executive report 'reports/data_quality_audit.md'.
 """
 
-import sys
 import json
 import re
-import pypdf
-from typing import Dict, Any, List
+import sys
+from typing import Any, Dict, List
 
+import pypdf
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
 from legal_rag.config import (
     OPINION_PDF_PATH,
-    SILVER_CORPUS_JSONL,
     REPORTS_DIR,
+    SILVER_CORPUS_JSONL,
     TRAINING_DATA_DIR,
 )
 from legal_rag.pipeline.indexer import load_or_build_gold_vectorstore
@@ -37,7 +37,7 @@ AUDIT_REPORT_MD = REPORTS_DIR / "data_quality_audit.md"
 def audit_bronze_to_silver() -> Dict[str, Any]:
     """Audits extraction fidelity between Bronze (PDF) and Silver (JSONL)."""
     print("[*] Auditing Bronze Layer (PDF) vs Silver Layer (JSONL)...")
-    
+
     # 1. Bronze check
     pdf_reader = pypdf.PdfReader(str(OPINION_PDF_PATH))
     bronze_page_count = len(pdf_reader.pages)
@@ -45,21 +45,21 @@ def audit_bronze_to_silver() -> Dict[str, Any]:
 
     # 2. Silver check
     silver_records = []
-    with open(SILVER_CORPUS_JSONL, "r", encoding="utf-8") as f:
+    with open(SILVER_CORPUS_JSONL, encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 silver_records.append(json.loads(line))
-    
+
     silver_page_count = len(silver_records)
     silver_chars = sum(r["metadata"]["char_count"] for r in silver_records)
 
     # 3. Integrity tests
-    page_parity = (bronze_page_count == silver_page_count)
-    
+    page_parity = bronze_page_count == silver_page_count
+
     # Unique hash check (detect duplicate pages)
     hashes = [r["metadata"]["content_checksum"] for r in silver_records]
     unique_hashes = len(set(hashes))
-    no_hash_collisions = (unique_hashes == silver_page_count)
+    no_hash_collisions = unique_hashes == silver_page_count
 
     # Check for null or corrupted characters
     corrupted_count = sum(1 for r in silver_records if "\x00" in r["content"] or "\ufffd" in r["content"])
@@ -84,7 +84,7 @@ def audit_bronze_to_silver() -> Dict[str, Any]:
 def audit_silver_to_gold(silver_records: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Audits chunking, coverage and embeddings between Silver and Gold (vector store)."""
     print("[*] Auditing Silver Layer (JSONL) vs Gold Layer (Vector Lake)...")
-    
+
     vector_store = load_or_build_gold_vectorstore()
     gold_count = count_vectors(vector_store)
 
@@ -115,7 +115,7 @@ def audit_silver_to_gold(silver_records: List[Dict[str, Any]]) -> Dict[str, Any]
     # 3. Vector search / embedding model response test
     test_query = "Sherman Act Section 2 monopoly"
     sample_retrieval = vector_store.as_retriever(search_kwargs={"k": 3}).invoke(test_query)
-    search_functional = (len(sample_retrieval) == 3)
+    search_functional = len(sample_retrieval) == 3
 
     return {
         "gold_total_chunks": gold_count,
@@ -135,20 +135,20 @@ def audit_silver_to_gold(silver_records: List[Dict[str, Any]]) -> Dict[str, Any]
 def audit_training_reconciliation(silver_records: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Audits lineage and compliance of the training datasets against the Silver Layer."""
     print("[*] Auditing Silver Layer vs Training Layer (SFT / CoT / DPO)...")
-    
+
     cot_file = TRAINING_DATA_DIR / "train_cot.jsonl"
     dpo_file = TRAINING_DATA_DIR / "preference_dataset.jsonl"
 
     cot_samples = []
     if cot_file.exists():
-        with open(cot_file, "r", encoding="utf-8") as f:
+        with open(cot_file, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     cot_samples.append(json.loads(line))
 
     dpo_samples = []
     if dpo_file.exists():
-        with open(dpo_file, "r", encoding="utf-8") as f:
+        with open(dpo_file, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     dpo_samples.append(json.loads(line))
@@ -162,6 +162,7 @@ def audit_training_reconciliation(silver_records: List[Dict[str, Any]]) -> Dict[
         output_text = s.get("output", "")
         # Extract [Pag. X]
         import re
+
         match = re.search(r"\[P[aá]g\.?\s*(\d+)", output_text, re.IGNORECASE)
         if match:
             cited_page = int(match.group(1))
@@ -184,7 +185,7 @@ def run_full_data_audit():
             "[bold cyan]FORMAL DATA QUALITY AUDIT AND CROSS-LAYER RECONCILIATION[/bold cyan]\n"
             "[white]Data Contract Testing: Bronze (Raw) <-> Silver (Processed) <-> Gold (Vector Lake)\n"
             "Lineage Compliance, Coverage, Hash Integrity and Inference[/white]",
-            border_style="cyan"
+            border_style="cyan",
         )
     )
 
@@ -207,49 +208,55 @@ def run_full_data_audit():
         "Bronze <-> Silver",
         f"{b2s['bronze_pages']} pages",
         f"{b2s['silver_pages']} pages",
-        "[bold green]PASS (100%)[/bold green]" if b2s["page_parity"] else "[bold red]FAIL[/bold red]"
+        "[bold green]PASS (100%)[/bold green]" if b2s["page_parity"] else "[bold red]FAIL[/bold red]",
     )
     table.add_row(
         "SHA-256 Hash Collisions",
         "Silver",
         "0 collisions (286 unique)",
         f"{b2s['unique_hashes']} unique",
-        "[bold green]PASS (0 Collisions)[/bold green]" if b2s["no_hash_collisions"] else "[bold red]FAIL[/bold red]"
+        "[bold green]PASS (0 Collisions)[/bold green]" if b2s["no_hash_collisions"] else "[bold red]FAIL[/bold red]",
     )
     table.add_row(
         "Encoding Integrity (Null Bytes)",
         "Silver",
         "0 corrupted pages",
         f"{b2s['corrupted_pages']} corrupted",
-        "[bold green]PASS (Zero Failures)[/bold green]" if b2s["corrupted_pages"] == 0 else "[bold red]FAIL[/bold red]"
+        "[bold green]PASS (Zero Failures)[/bold green]" if b2s["corrupted_pages"] == 0 else "[bold red]FAIL[/bold red]",
     )
     table.add_row(
         "Strict Chunk ID Lineage",
         "Silver <-> Gold",
         "100% chunks with doc1033 prefix",
         f"{s2g['chunks_with_valid_id']}/{s2g['gold_total_chunks']}",
-        "[bold green]PASS (100% Traceable)[/bold green]" if s2g["all_chunks_have_lineage_id"] else "[bold red]FAIL[/bold red]"
+        "[bold green]PASS (100% Traceable)[/bold green]"
+        if s2g["all_chunks_have_lineage_id"]
+        else "[bold red]FAIL[/bold red]",
     )
     table.add_row(
         "Page Coverage in Vector Lake",
         "Silver <-> Gold",
         "100% of 286 pages indexed",
         f"{s2g['page_coverage_pct']}% ({s2g['pages_covered_in_gold']}/286)",
-        "[bold green]PASS (100% Coverage)[/bold green]" if s2g["page_coverage_pct"] >= 99.0 else "[bold yellow]WARN[/bold yellow]"
+        "[bold green]PASS (100% Coverage)[/bold green]"
+        if s2g["page_coverage_pct"] >= 99.0
+        else "[bold yellow]WARN[/bold yellow]",
     )
     table.add_row(
         "Calibrated Chunk Size",
         "Gold",
         "Average ~600-900 chars",
         f"Average: {s2g['avg_chunk_size']} chars",
-        "[bold green]PASS (Calibrated)[/bold green]"
+        "[bold green]PASS (Calibrated)[/bold green]",
     )
     table.add_row(
         "Ground Truth Reconciliation (SFT)",
         "Silver <-> Training",
         "100% of citations exist in Silver",
         f"{train_audit['citation_validity_pct']}% compliance",
-        "[bold green]PASS (Audited)[/bold green]" if train_audit["citation_validity_pct"] >= 95.0 else "[bold yellow]WARN[/bold yellow]"
+        "[bold green]PASS (Audited)[/bold green]"
+        if train_audit["citation_validity_pct"] >= 95.0
+        else "[bold yellow]WARN[/bold yellow]",
     )
 
     console.print("\n")
@@ -277,36 +284,36 @@ Este documento formaliza os testes de **Data Contract Validation, Integridade Re
 | **Paridade de Páginas (Completeness)** | Bronze $\\leftrightarrow$ Silver | 286 páginas | **286 páginas** | ✅ **PASS (100%)** |
 | **Colisões de Hash (Deduplication)** | Silver | 0 colisões | **286 hashes únicos** | ✅ **PASS (Zero Duplicatas)** |
 | **Integridade de Caracteres (Null Bytes)** | Silver | 0 falhas | **0 falhas detectadas** | ✅ **PASS (Zero Corrupção)** |
-| **Linhagem Estrita de IDs de Chunks** | Silver $\\leftrightarrow$ Gold | 100% prefixados | **{s2g['chunks_with_valid_id']}/{s2g['gold_total_chunks']} prefixados** | ✅ **PASS (Rastreável)** |
-| **Cobertura de Páginas no Vector Lake** | Silver $\\leftrightarrow$ Gold | 100% | **{s2g['page_coverage_pct']}% ({s2g['pages_covered_in_gold']}/286)** | ✅ **PASS (Cobertura Total)** |
-| **Tamanho Médio de Particionamento** | Gold | 600–900 chars | **{s2g['avg_chunk_size']} chars** | ✅ **PASS (Calibrado)** |
-| **Reconciliação Ground Truth SFT** | Silver $\\leftrightarrow$ Training | $\\ge$ 95% | **{train_audit['citation_validity_pct']}%** | ✅ **PASS (Auditado)** |
+| **Linhagem Estrita de IDs de Chunks** | Silver $\\leftrightarrow$ Gold | 100% prefixados | **{s2g["chunks_with_valid_id"]}/{s2g["gold_total_chunks"]} prefixados** | ✅ **PASS (Rastreável)** |
+| **Cobertura de Páginas no Vector Lake** | Silver $\\leftrightarrow$ Gold | 100% | **{s2g["page_coverage_pct"]}% ({s2g["pages_covered_in_gold"]}/286)** | ✅ **PASS (Cobertura Total)** |
+| **Tamanho Médio de Particionamento** | Gold | 600–900 chars | **{s2g["avg_chunk_size"]} chars** | ✅ **PASS (Calibrado)** |
+| **Reconciliação Ground Truth SFT** | Silver $\\leftrightarrow$ Training | $\\ge$ 95% | **{train_audit["citation_validity_pct"]}%** | ✅ **PASS (Auditado)** |
 
 ---
 
 ## 🔍 2. Auditoria Detalhada por Camada
 
 ### 🥉 Camada Bronze $\\rightarrow$ 🥈 Camada Silver
-- **Volume do PDF Bruto**: `{b2s['bronze_size_mb']} MB`
-- **Volume Textual Extraído**: `{b2s['silver_total_chars']:,} caracteres`
-- **Média por Página**: `~{b2s['silver_total_chars'] // b2s['silver_pages']:,} caracteres/pág`
+- **Volume do PDF Bruto**: `{b2s["bronze_size_mb"]} MB`
+- **Volume Textual Extraído**: `{b2s["silver_total_chars"]:,} caracteres`
+- **Média por Página**: `~{b2s["silver_total_chars"] // b2s["silver_pages"]:,} caracteres/pág`
 - **Assinatura de Integridade**: O arquivo original possui cabeçalho válido `%PDF-1.6`, e o script de parsing extraiu exatamente todas as **286 páginas**, preservando 1-para-1 a paginação do tribunal federal.
 - **Detecção de Páginas Vazias**: Nenhuma página do processo foi perdida ou descartada indevidamente.
 
 ### 🥈 Camada Silver $\\rightarrow$ 🥇 Camada Gold
-- **Total de Chunks Indexados**: `{s2g['gold_total_chunks']}`
+- **Total de Chunks Indexados**: `{s2g["gold_total_chunks"]}`
 - **Política de IDs**: Cada chunk possui identificador único determinístico no formato `doc1033_p{{page}}_c{{id}}`.
 - **Estatísticas de Particionamento**:
-  - Menor chunk: `{s2g['min_chunk_size']} caracteres`
-  - Maior chunk: `{s2g['max_chunk_size']} caracteres`
-  - Tamanho médio: `{s2g['avg_chunk_size']} caracteres`
+  - Menor chunk: `{s2g["min_chunk_size"]} caracteres`
+  - Maior chunk: `{s2g["max_chunk_size"]} caracteres`
+  - Tamanho médio: `{s2g["avg_chunk_size"]} caracteres`
 - **Dimensão dos Embeddings**: 768 dimensões com modelo `nomic-embed-text` rodando localmente via Ollama.
 - **Teste de Recuperação Vetorial**: Operacional e funcional em tempo real.
 
 ### 🥈 Camada Silver $\\rightarrow$ 💎 Camada de Treinamento (SFT / DPO)
-- **Dataset CoT Gerado**: `{train_audit['total_cot_samples']} amostras` com raciocínio analítico explícito (`<pensamento_forense>`).
-- **Dataset DPO Gerado**: `{train_audit['total_dpo_samples']} pares de preferência` (*Chosen* vs. *Rejected*).
-- **Validação de Citação de Linhagem**: `{train_audit['citation_validity_pct']}%` das citações apontam para páginas existentes e validadas na camada Silver.
+- **Dataset CoT Gerado**: `{train_audit["total_cot_samples"]} amostras` com raciocínio analítico explícito (`<pensamento_forense>`).
+- **Dataset DPO Gerado**: `{train_audit["total_dpo_samples"]} pares de preferência` (*Chosen* vs. *Rejected*).
+- **Validação de Citação de Linhagem**: `{train_audit["citation_validity_pct"]}%` das citações apontam para páginas existentes e validadas na camada Silver.
 
 ---
 

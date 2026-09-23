@@ -24,7 +24,7 @@ def retrieve_node(state: AgentState) -> Dict[str, Any]:
     """
     query = state.get("current_query") or state["question"]
     as_of_date = state.get("as_of_date")
-    
+
     if as_of_date:
         logger.info("node.retrieve", extra={"query": query, "as_of_date": as_of_date})
         retriever = get_temporal_retriever(as_of_date=as_of_date, k=TOP_K_DOCUMENTS)
@@ -46,7 +46,7 @@ def grade_documents_node(state: AgentState) -> Dict[str, Any]:
     question = state["question"]
     documents = state.get("documents", [])
     logger.info("node.grade_documents", extra={"chunks": len(documents)})
-    
+
     if not documents:
         return {"documents": []}
 
@@ -59,18 +59,17 @@ def grade_documents_node(state: AgentState) -> Dict[str, Any]:
 
     batch_grader = create_batch_doc_grader()
     try:
-        res = batch_grader.invoke({
-            "question": question,
-            "documents_batch": documents_batch_str,
-        })
+        res = batch_grader.invoke(
+            {
+                "question": question,
+                "documents_batch": documents_batch_str,
+            }
+        )
         relevant_indices = getattr(res, "relevant_indices", list(range(1, len(documents) + 1)))
         rationale = getattr(res, "rationale", "")
         logger.info("node.grade_documents.done", extra={"approved": relevant_indices, "rationale": rationale})
-        
-        filtered_docs = [
-            doc for idx, doc in enumerate(documents, start=1)
-            if idx in relevant_indices
-        ]
+
+        filtered_docs = [doc for idx, doc in enumerate(documents, start=1) if idx in relevant_indices]
         if not filtered_docs and documents:
             logger.info("node.grade_documents.none_approved")
     except Exception as e:
@@ -88,7 +87,7 @@ def rewrite_query_node(state: AgentState) -> Dict[str, Any]:
     question = state["question"]
     retry_count = state.get("retry_count", 0) + 1
     logger.info("node.rewrite_query", extra={"cycle": retry_count, "max_retries": MAX_RETRIES})
-    
+
     rewriter = create_query_rewriter()
     try:
         res = rewriter.invoke({"question": question})
@@ -114,7 +113,7 @@ def generate_node(state: AgentState) -> Dict[str, Any]:
     question = state["question"]
     documents = state.get("documents", [])
     generation_attempts = state.get("generation_attempts", 0) + 1
-    
+
     if generation_attempts > 1:
         logger.info("node.generate", extra={"attempt": generation_attempts, "mode": "reinforced_grounding"})
         effective_question = (
@@ -124,21 +123,21 @@ def generate_node(state: AgentState) -> Dict[str, Any]:
     else:
         logger.info("node.generate", extra={"attempt": generation_attempts, "chunks": len(documents)})
         effective_question = question
-    
+
     formatted_context_parts = []
     pages_cited = set()
     for doc in documents:
         page = doc.metadata.get("page", "?")
         pages_cited.add(str(page))
         formatted_context_parts.append(f"--- [Pagina {page} da Sentenca] ---\n{doc.page_content}")
-    
+
     context_str = "\n\n".join(formatted_context_parts)
     if not context_str.strip():
         context_str = "Nenhum documento com relevancia suficiente foi localizado na base judicial."
 
     generator = create_generator()
     generation = generator.invoke({"context": context_str, "question": effective_question})
-    
+
     return {
         "generation": generation,
         "citations": sorted(list(pages_cited)),
@@ -168,3 +167,11 @@ def fallback_node(state: AgentState) -> Dict[str, Any]:
         "answer_verdict": "fallback",
     }
 
+
+def finalize_node(state: AgentState) -> Dict[str, Any]:
+    """
+    Node 6: Records the audit verdicts of an answer that passed every gate.
+    (Conditional edges cannot write state, so the approval is persisted here.)
+    """
+    logger.info("node.finalize", extra={"citations": state.get("citations", [])})
+    return {"hallucination_verdict": "grounded", "answer_verdict": "useful"}

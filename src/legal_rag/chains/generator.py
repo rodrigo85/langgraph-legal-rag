@@ -4,14 +4,13 @@ Generates the final investigative answer strictly grounded in the retrieved docu
 with mandatory page citations from Judge Amit Mehta's opinion.
 """
 
-from langchain_core.prompts import ChatPromptTemplate
+import re
+
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda
 
 from legal_rag.providers import get_chat_model
-
-
-import re
-from langchain_core.runnables import RunnableLambda
 
 
 def sanitize_response(text: str) -> str:
@@ -45,9 +44,14 @@ Regras Inegociaveis:
 5. Se o contexto contiver mencao a depoimentos sob juramento (ex: Satya Nadella, Sundar Pichai, Eddy Cue) ou e-mails internos (UPX exhibits), destaque essas fontes literais.
 6. TABELAS DE DEPOENTES: Diferencie rigorosamente a 'Affiliation' (empresa do depoente) de quem o convocou ('Called By'). So declare que alguem e da Google se a Affiliation for expressamente Google. Se os trechos nao responderem com certeza quem foi a testemunha principal chamada a depor, declare claramente que as evidencias nos trechos sao inconclusivas em vez de supor."""
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Contexto Documental Recuperado:\n{context}\n\nPergunta Investigativa:\n{question}\n\nResposta fundamentada com citacoes:"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            (
+                "human",
+                "Contexto Documental Recuperado:\n{context}\n\nPergunta Investigativa:\n{question}\n\nResposta fundamentada com citacoes:",
+            ),
+        ]
+    )
 
     return prompt | llm | StrOutputParser() | RunnableLambda(sanitize_response)

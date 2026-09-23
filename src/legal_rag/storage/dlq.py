@@ -77,11 +77,15 @@ class AzureBlobSink:
 
     def write(self, record: Dict[str, Any]) -> str:
         key = _object_key(record)
-        self.container_client.upload_blob(
-            name=key,
-            data=json.dumps(record, ensure_ascii=False).encode("utf-8"),
-            overwrite=False,
-        )
+        data = json.dumps(record, ensure_ascii=False).encode("utf-8")
+        try:
+            self.container_client.upload_blob(name=key, data=data, overwrite=False)
+        except Exception as err:
+            # Container is provisioned by Terraform in the cloud; create it lazily for local emulators
+            if type(err).__name__ != "ResourceNotFoundError":
+                raise
+            self.container_client.create_container()
+            self.container_client.upload_blob(name=key, data=data, overwrite=False)
         return f"azure://{self.container}/{key}"
 
 
@@ -96,7 +100,7 @@ def build_sink(settings: Settings | None = None) -> IncidentSink:
             settings.azure_storage_connection_string.get_secret_value(),
             settings.dlq_azure_container,
         )
-    return JsonlSink(HALLUCINATIONS_LOG_PATH)
+    return JsonlSink(settings.app_home / "data" / "logs" / HALLUCINATIONS_LOG_PATH.name)
 
 
 @lru_cache
@@ -119,7 +123,9 @@ def build_incident_record(
         "rejected_generation": generation,
         "audit_summary": audit_summary,
         "retrieved_pages": [d.metadata.get("page") for d in documents if hasattr(d, "metadata")],
-        "retrieved_sources": sorted({d.metadata.get("source_file") for d in documents if hasattr(d, "metadata")} - {None}),
+        "retrieved_sources": sorted(
+            {d.metadata.get("source_file") for d in documents if hasattr(d, "metadata")} - {None}
+        ),
         "context_snippets": [d.page_content[:200] for d in documents if hasattr(d, "page_content")],
     }
 

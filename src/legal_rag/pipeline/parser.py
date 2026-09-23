@@ -4,18 +4,17 @@ Transforms raw data (Bronze PDF) into structured text records (Silver JSONL)
 while preserving full data lineage (page, char_count, document_title).
 """
 
-import json
 import hashlib
+import json
+import re
 from pathlib import Path
 from typing import List, Optional
+
 import pypdf
 from langchain_core.documents import Document
 
-
 from legal_rag.config import SILVER_CORPUS_JSONL
-
-
-import re
+from legal_rag.pipeline.downloader import LANDMARK_REGISTRY
 
 WITNESS_DATES = {
     "nadella": "2023-09-26",
@@ -74,13 +73,7 @@ def extract_page_temporal_metadata(text: str, page_num: int) -> dict:
     }
 
 
-from legal_rag.pipeline.downloader import LANDMARK_REGISTRY
-
-
-def parse_and_clean_pdf(
-    pdf_path: Optional[Path] = None,
-    output_jsonl: Path = SILVER_CORPUS_JSONL
-) -> List[Document]:
+def parse_and_clean_pdf(pdf_path: Optional[Path] = None, output_jsonl: Path = SILVER_CORPUS_JSONL) -> List[Document]:
     """
     Processes all landmark documents (Doc 1, Doc 1033, Doc 1062) present in the Bronze layer,
     extracts temporal metadata and writes the consolidated Silver layer (JSONL).
@@ -117,14 +110,14 @@ def parse_and_clean_pdf(
         for page_idx, page in enumerate(reader.pages, start=1):
             raw_text = page.extract_text() or ""
             clean_text = "\n".join([line.strip() for line in raw_text.splitlines() if line.strip()])
-            
+
             # Data-quality filter: skip pages without substantial content
             if len(clean_text) < 50:
                 continue
 
             page_hash = hashlib.sha256(clean_text.encode("utf-8")).hexdigest()[:16]
             temporal_meta = extract_page_temporal_metadata(clean_text, page_idx)
-            
+
             # Docket-specific metadata
             if docket_num == 1:
                 temporal_meta["filing_date"] = "2020-10-20"
@@ -147,18 +140,14 @@ def parse_and_clean_pdf(
                 "total_pages": total_raw_pages,
                 "char_count": len(clean_text),
                 "content_checksum": page_hash,
-                **temporal_meta
+                **temporal_meta,
             }
 
             doc = Document(page_content=clean_text, metadata=metadata)
             all_silver_docs.append(doc)
             doc_pages_processed += 1
 
-            all_jsonl_records.append({
-                "page": page_idx,
-                "content": clean_text,
-                "metadata": metadata
-            })
+            all_jsonl_records.append({"page": page_idx, "content": clean_text, "metadata": metadata})
 
         print(f"    [SILVER] {doc_pages_processed}/{total_raw_pages} pages extracted successfully.")
 
@@ -180,16 +169,15 @@ def load_silver_documents(silver_jsonl: Path = SILVER_CORPUS_JSONL) -> List[Docu
         return parse_and_clean_pdf()
 
     docs = []
-    with open(silver_jsonl, "r", encoding="utf-8") as f:
+    with open(silver_jsonl, encoding="utf-8") as f:
         for line in f:
             if not line.strip():
                 continue
             data = json.loads(line)
             docs.append(Document(page_content=data["content"], metadata=data["metadata"]))
-    
+
     return docs
 
 
 if __name__ == "__main__":
     parse_and_clean_pdf()
-

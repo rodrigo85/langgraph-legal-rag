@@ -5,24 +5,23 @@ Runs a systematic comparative benchmark between:
 2. Self-Correcting RAG (LangGraph with Data Quality Gates and hallucination auditing).
 """
 
+import json
 import sys
 import time
-import json
-from typing import Dict, Any
-
+from typing import Any, Dict
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
-from legal_rag.config import BENCHMARK_DATASET_PATH, TOP_K_DOCUMENTS
-from legal_rag.pipeline.indexer import load_or_build_gold_vectorstore
+from legal_rag.agent.graph import build_graph
 from legal_rag.chains.generator import create_generator
 from legal_rag.chains.hallucination_grader import create_hallucination_grader
-from legal_rag.agent.graph import build_graph
+from legal_rag.config import BENCHMARK_DATASET_PATH, TOP_K_DOCUMENTS
+from legal_rag.pipeline.indexer import load_or_build_gold_vectorstore
 
 console = Console()
 
@@ -35,10 +34,10 @@ def run_naive_rag(question: str) -> Dict[str, Any]:
     start_time = time.time()
     vector_store = load_or_build_gold_vectorstore()
     retriever = vector_store.as_retriever(search_kwargs={"k": TOP_K_DOCUMENTS})
-    
+
     docs = retriever.invoke(question)
     context = "\n\n".join([f"--- [Pagina {d.metadata.get('page', '?')}] ---\n{d.page_content}" for d in docs])
-    
+
     generator = create_generator()
     generation = generator.invoke({"context": context, "question": question})
     latency = time.time() - start_time
@@ -98,7 +97,7 @@ def execute_benchmark():
             "[bold cyan]Benchmark LLMOps: Naive RAG vs. Self-Correcting RAG (LangGraph)[/bold cyan]\n"
             "[white]Test Corpus: Federal Opinion U.S. v. Google LLC (286 pages)\n"
             "Metrics: Latency, Groundedness (Anti-Hallucination) and Self-Correction Rate[/white]",
-            border_style="cyan"
+            border_style="cyan",
         )
     )
 
@@ -106,7 +105,7 @@ def execute_benchmark():
         console.print(f"[bold red]Benchmark dataset not found at: {BENCHMARK_DATASET_PATH}[/bold red]")
         return
 
-    with open(BENCHMARK_DATASET_PATH, "r", encoding="utf-8") as f:
+    with open(BENCHMARK_DATASET_PATH, encoding="utf-8") as f:
         cases = json.load(f)
 
     app = build_graph()
@@ -124,13 +123,13 @@ def execute_benchmark():
         q_id = case["id"]
         q_text = case["question"]
         q_cat = case["category"]
-        
+
         console.print(f"\n[bold]Running Case: {q_id}[/bold] ('{q_text}')")
-        
+
         # 1. Naive RAG run
         console.print("  [dim]-> Running Naive RAG (no guardrails)...[/dim]")
         naive_res = run_naive_rag(q_text)
-        
+
         # 2. Self-Correcting RAG run
         console.print("  [dim]-> Running Self-Correcting RAG (LangGraph)...[/dim]")
         self_res = run_self_rag(q_text, app)
@@ -151,4 +150,3 @@ def execute_benchmark():
 
 if __name__ == "__main__":
     execute_benchmark()
-

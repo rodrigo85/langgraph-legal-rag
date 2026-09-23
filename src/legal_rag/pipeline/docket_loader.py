@@ -4,7 +4,7 @@ Provides temporal metadata, trial milestones and helpers for Point-in-Time RAG.
 """
 
 import json
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from legal_rag.config import DOCKETS_REGISTRY_PATH
 
@@ -13,7 +13,7 @@ def load_dockets_registry() -> Dict[str, Any]:
     """Loads the official registry of dockets and trial milestones."""
     if not DOCKETS_REGISTRY_PATH.exists():
         return {"case_info": {}, "milestones": []}
-    with open(DOCKETS_REGISTRY_PATH, "r", encoding="utf-8") as f:
+    with open(DOCKETS_REGISTRY_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
