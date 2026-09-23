@@ -12,6 +12,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # Camada Bronze: Dados brutos imutáveis
 BRONZE_RAW_DIR = PROJECT_ROOT / "data" / "raw"
 OPINION_PDF_PATH = BRONZE_RAW_DIR / "us_v_google_opinion_1033.pdf"
+COMPLAINT_PDF_PATH = BRONZE_RAW_DIR / "us_v_google_complaint_doc1.pdf"
+REMEDIES_PDF_PATH = BRONZE_RAW_DIR / "us_v_google_remedies_doc1062.pdf"
 
 # Camada Silver: Dados processados, limpos e enriquecidos com metadados
 SILVER_PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
@@ -31,6 +33,7 @@ BENCHMARK_DATASET_PATH = SAMPLES_DIR / "qa_benchmark.json"
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 OLLAMA_LLM_MODEL = os.getenv("OLLAMA_LLM_MODEL", "antitrust-specialist-v2")
 OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text:latest")
+OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "24h")  # Trava 24h na VRAM da GPU sem descarregar
 
 # ==============================================================================
 # 3. Hiperparâmetros de Engenharia de Dados & RAG

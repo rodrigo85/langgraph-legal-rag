@@ -1,0 +1,93 @@
+{
+  "case_info": {
+    "docket_number": "1:20-cv-03010-APM",
+    "court": "United States District Court for the District of Columbia",
+    "case_name": "United States of America et al. v. Google LLC",
+    "judge": "Amit P. Mehta",
+    "total_dockets": 1050,
+    "source": "CourtListener / RECAP Archive"
+  },
+  "milestones": [
+    {
+      "id": "complaint_2020",
+      "filing_date": "2020-10-20",
+      "docket_number": 1,
+      "title": "Petição Inicial da Acusação (DOJ Complaint)",
+      "phase": "pre_trial",
+      "summary": "O Departamento de Justiça (DOJ) e 11 Procuradores-Gerais estaduais ajuízam ação civil acusando o Google de monopolizar ilegalmente os mercados de busca geral e publicidade textual sob a Seção 2 do Sherman Act.",
+      "key_actors": ["DOJ", "Merrick Garland", "Google LLC"]
+    },
+    {
+      "id": "summary_judgment_2023",
+      "filing_date": "2023-08-04",
+      "docket_number": 496,
+      "title": "Decisão de Julgamento Sumário Parcial",
+      "phase": "pre_trial",
+      "summary": "O Juiz Mehta rejeita parte das alegações estaduais sobre design de SERP, mas mantém integralmente a tese do DOJ referente aos contratos de distribuição exclusiva (ISA com Apple e RSAs com Android).",
+      "key_actors": ["Amit P. Mehta"]
+    },
+    {
+      "id": "trial_opening_2023",
+      "filing_date": "2023-09-12",
+      "docket_number": 653,
+      "title": "Abertura do Julgamento em Plenário (Trial Day 1)",
+      "phase": "trial",
+      "summary": "Início da instrução probatória de 10 semanas em Washington, D.C. A acusação abre alegando que o Google ergueu um 'fosso inexpugnável' de distribuição exclusiva.",
+      "key_actors": ["Kenneth Dintzer (DOJ)", "John Schmidtlein (Google)"]
+    },
+    {
+      "id": "testimony_nadella_cue_2023",
+      "filing_date": "2023-09-26",
+      "docket_number": 678,
+      "title": "Depoimentos de Satya Nadella (Microsoft) e Eddy Cue (Apple)",
+      "phase": "trial",
+      "summary": "Satya Nadella testemunha que a busca é o 'maior negócio sob a face da Terra' e que o Google usa seu monopólio para fechar a distribuição (Google wheel). Eddy Cue detalha a evolução do ISA no Safari e confirma que a Apple nunca considerou trocar o Google como padrão devido à perda de receita.",
+      "key_actors": ["Satya Nadella", "Eddy Cue"]
+    },
+    {
+      "id": "testimony_pichai_2023",
+      "filing_date": "2023-10-05",
+      "docket_number": 712,
+      "title": "Depoimento de Sundar Pichai (CEO do Google)",
+      "phase": "trial",
+      "summary": "Sundar Pichai testemunha defendendo que o Google vence por inovação e experiência superior de produto. Questionado sobre os pagamentos bilionários de revenue share à Apple e Samsung, afirma que os pagamentos eram essenciais para viabilizar e incentivar a promoção contínua do ecossistema.",
+      "key_actors": ["Sundar Pichai"]
+    },
+    {
+      "id": "trial_closing_2023",
+      "filing_date": "2023-11-16",
+      "docket_number": 820,
+      "title": "Encerramento da Fase de Instrução Probatória (Trial Day 45)",
+      "phase": "trial",
+      "summary": "Fim dos depoimentos de testemunhas e da juntada de mais de 3.500 provas documentais (UPX e DX exhibits). O processo entra na fase de redação das alegações finais.",
+      "key_actors": ["Amit P. Mehta"]
+    },
+    {
+      "id": "proposed_findings_2024",
+      "filing_date": "2024-02-12",
+      "docket_number": 945,
+      "title": "Propostas de Fatos Comprovados pelas Partes",
+      "phase": "post_trial",
+      "summary": "DOJ e Google protocolam milhares de páginas de propostas de fatos e conclusões jurídicas cruzando as transcrições das 10 semanas de julgamento.",
+      "key_actors": ["DOJ", "Google"]
+    },
+    {
+      "id": "closing_arguments_2024",
+      "filing_date": "2024-05-02",
+      "docket_number": 998,
+      "title": "Sustentações Orais Finais",
+      "phase": "post_trial",
+      "summary": "Dois dias de debates orais intensos onde o Juiz Mehta questiona Google e DOJ sobre o teste de Section 2 do Sherman Act e o poder de mercado.",
+      "key_actors": ["Amit P. Mehta", "DOJ", "Google"]
+    },
+    {
+      "id": "verdict_opinion_2024",
+      "filing_date": "2024-08-05",
+      "docket_number": 1033,
+      "title": "Sentença de Mérito Histórica (Memorandum Opinion - 286 páginas)",
+      "phase": "verdict",
+      "summary": "O Juiz Amit P. Mehta decide: 'Google é um monopolista e atuou para manter seu monopólio'. Condenação formal sob a Seção 2 do Sherman Act nos mercados de General Search e General Search Text Ads.",
+      "key_actors": ["Amit P. Mehta"]
+    }
+  ]
+}

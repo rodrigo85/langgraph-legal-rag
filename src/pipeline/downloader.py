@@ -1,44 +1,79 @@
 """
-Camada Bronze - Ingestao Bruta de Dados.
+Camada Bronze - Ingestao Bruta de Dados (Multi-Document Landmark Lakehouse).
 Modulo responsavel pelo download idempotente e validacao de integridade
-do documento judicial oficial (Doc 1033) a partir do RECAP/CourtListener.
+dos documentos oficiais do processo judicial U.S. v. Google LLC (2020 a 2025):
+1. Doc 1 (2020-10-20): Peticao Inicial DOJ (Complaint)
+2. Doc 1033 (2024-08-05): Sentenca de Merito e Veredito (Memorandum Opinion)
+3. Doc 1062-1 (2024-11-20): Proposta de Remedios & Desmembramento (Proposed Final Judgment)
 """
 
 import sys
 import urllib.request
 from pathlib import Path
+from typing import Dict, Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.config import OPINION_PDF_PATH
+from src.config import (
+    BRONZE_RAW_DIR,
+    OPINION_PDF_PATH,
+    COMPLAINT_PDF_PATH,
+    REMEDIES_PDF_PATH,
+)
 
-# URL autenticada no RECAP/CourtListener
-OPINION_PDF_URL = "https://storage.courtlistener.com/recap/gov.uscourts.dcd.223205/gov.uscourts.dcd.223205.1033.0_5.pdf"
+LANDMARK_REGISTRY: Dict[str, Dict[str, Any]] = {
+    "doc1": {
+        "title": "U.S. v. Google LLC - DOJ Complaint (Doc 1)",
+        "docket_number": 1,
+        "filing_date": "2020-10-20",
+        "url": "https://www.justice.gov/atr/case-document/file/1329131/dl",
+        "target_path": COMPLAINT_PDF_PATH,
+        "trial_phase": "pre_trial",
+    },
+    "doc1033": {
+        "title": "U.S. v. Google LLC - Memorandum Opinion (Doc 1033)",
+        "docket_number": 1033,
+        "filing_date": "2024-08-05",
+        "url": "https://storage.courtlistener.com/recap/gov.uscourts.dcd.223205/gov.uscourts.dcd.223205.1033.0_5.pdf",
+        "target_path": OPINION_PDF_PATH,
+        "trial_phase": "verdict",
+    },
+    "doc1062": {
+        "title": "U.S. v. Google LLC - Plaintiffs' Proposed Final Judgment on Remedies (Doc 1062-1)",
+        "docket_number": 1062,
+        "filing_date": "2024-11-20",
+        "url": "https://www.justice.gov/atr/media/1378036/dl",
+        "target_path": REMEDIES_PDF_PATH,
+        "trial_phase": "remedies",
+    },
+}
 
 
-def download_court_opinion(url: str = OPINION_PDF_URL, target_path: Path = OPINION_PDF_PATH) -> Path:
-    """
-    Realiza o download idempotente do arquivo bruto para a camada Bronze.
-    Valida tamanho de arquivo e assinatura %PDF-.
-    """
+def download_single_document(doc_info: Dict[str, Any]) -> Path:
+    """Download idempotente com validacao de magic bytes %PDF-."""
+    target_path = Path(doc_info["target_path"])
+    url = doc_info["url"]
+    title = doc_info["title"]
+    
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if target_path.exists() and target_path.stat().st_size > 1_000_000:
+    if target_path.exists() and target_path.stat().st_size > 100_000:
         size_mb = target_path.stat().st_size / (1024 * 1024)
-        print(f"[BRONZE] Arquivo bruto ja presente em: {target_path.name} ({size_mb:.2f} MB)")
+        print(f"[BRONZE] {title} ja presente: {target_path.name} ({size_mb:.2f} MB)")
         return target_path
 
-    print(f"[BRONZE] Baixando documento judicial de: {url}")
-    print(f"[BRONZE] Salvando em: {target_path}")
+    print(f"[BRONZE] Baixando: {title}")
+    print(f"         URL: {url}")
+    print(f"         Destino: {target_path.name}")
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) DataEngineeringPipeline/1.0"
     }
 
     req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req) as response, open(target_path, "wb") as out_file:
+    with urllib.request.urlopen(req, timeout=30) as response, open(target_path, "wb") as out_file:
         total_size = int(response.headers.get("Content-Length", 0))
         downloaded = 0
         chunk_size = 64 * 1024
@@ -52,10 +87,10 @@ def download_court_opinion(url: str = OPINION_PDF_URL, target_path: Path = OPINI
             if total_size > 0:
                 percent = (downloaded / total_size) * 100
                 mb = downloaded / (1024 * 1024)
-                sys.stdout.write(f"\r[BRONZE] Progresso: {percent:.1f}% ({mb:.2f} MB)")
+                sys.stdout.write(f"\r    [Progresso] {percent:.1f}% ({mb:.2f} MB)")
                 sys.stdout.flush()
 
-    print("\n[BRONZE] Download concluido.")
+    print("\n    [BRONZE] Download concluido.")
 
     # Validacao de Assinatura Magica de Formato
     with open(target_path, "rb") as f:
@@ -64,10 +99,26 @@ def download_court_opinion(url: str = OPINION_PDF_URL, target_path: Path = OPINI
             raise ValueError(f"[ERRO DE DADOS] Arquivo corrompido ou invalido. Cabecalho: {header}")
 
     size_mb = target_path.stat().st_size / (1024 * 1024)
-    print(f"[BRONZE] Validacao de integridade OK ({size_mb:.2f} MB).")
+    print(f"    [BRONZE] Assinatura %PDF- validada com sucesso ({size_mb:.2f} MB).")
     return target_path
 
 
-if __name__ == "__main__":
-    download_court_opinion()
+def download_court_opinion() -> Path:
+    """Funcao legada para retrocompatibilidade."""
+    return download_single_document(LANDMARK_REGISTRY["doc1033"])
 
+
+def download_all_landmarks() -> Dict[str, Path]:
+    """Baixa todos os marcos historicos do processo judicial para a camada Bronze."""
+    print("=" * 70)
+    print("CAMADA BRONZE - INGESTAO DE MARCOS HISTORICOS (U.S. v. Google)")
+    print("=" * 70)
+    results = {}
+    for doc_id, doc_info in LANDMARK_REGISTRY.items():
+        results[doc_id] = download_single_document(doc_info)
+    print("\n[OK] Todos os documentos da Camada Bronze estao prontos e validados.")
+    return results
+
+
+if __name__ == "__main__":
+    download_all_landmarks()

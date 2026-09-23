@@ -23,4 +23,7 @@ class AgentState(TypedDict):
     hallucination_verdict: Optional[str]  # "grounded" (fiel) ou "hallucinated" (alucinou)
     answer_verdict: Optional[str]         # "useful" (respondeu) ou "not_useful" (insuficiente)
     citations: List[str]                  # Linhagem de paginas comprovadas da sentenca
+    as_of_date: Optional[str]             # Data limite Point-in-Time YYYY-MM-DD (Anti-Lookahead Bias)
+    milestone_title: Optional[str]        # Titulo do marco processual em vigor
+
 

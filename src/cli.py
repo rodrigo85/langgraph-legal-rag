@@ -69,18 +69,16 @@ def run_cli():
 
             console.print("\n[bold cyan]=== INICIANDO EXECUCAO DO GRAFO ===[/bold cyan]")
             
-            final_state = None
+            final_state = dict(initial_state)
             for output in app.stream(initial_state):
                 for node_name, state_update in output.items():
                     console.print(f"[bold magenta]>>> No Concluido: {node_name}[/bold magenta]")
-
-            # Obter resultado final
-            final_res = app.invoke(initial_state)
+                    final_state.update(state_update)
             
             console.print("\n" + "=" * 60)
-            console.print(Panel(Markdown(final_res.get("generation", "Sem resposta")), title="[bold green]Resposta Auditada e Fundamentada[/bold green]", border_style="green"))
+            console.print(Panel(Markdown(final_state.get("generation", "Sem resposta")), title="[bold green]Resposta Auditada e Fundamentada[/bold green]", border_style="green"))
             
-            citations = final_res.get("citations", [])
+            citations = final_state.get("citations", [])
             if citations:
                 console.print(f"[bold yellow]Paginas citadas da Sentenca:[/bold yellow] {', '.join(citations)}")
             console.print("=" * 60 + "\n")

@@ -8,7 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_ollama import ChatOllama
 
-from src.config import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL
+from src.config import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL, OLLAMA_KEEP_ALIVE
 
 
 import re
@@ -38,6 +38,7 @@ def create_generator():
         temperature=0.1,
         base_url=OLLAMA_BASE_URL,
         num_predict=600,
+        keep_alive=OLLAMA_KEEP_ALIVE,
     )
 
     system_prompt = """Voce e um Perito Forense e Pesquisador Especialista no processo antitruste federal U.S. v. Google LLC.

@@ -14,8 +14,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.agent.state import AgentState
 from src.config import TOP_K_DOCUMENTS, MAX_RETRIES
-from src.pipeline.indexer import load_or_build_gold_vectorstore
-from src.chains.doc_grader import create_doc_grader
+from src.pipeline.indexer import load_or_build_gold_vectorstore, get_temporal_retriever
+from src.chains.doc_grader import create_doc_grader, create_batch_doc_grader
 from src.chains.query_rewriter import create_query_rewriter
 from src.chains.generator import create_generator
 
@@ -23,47 +23,63 @@ from src.chains.generator import create_generator
 def retrieve_node(state: AgentState) -> Dict[str, Any]:
     """
     No 1: Recuperacao Vetorial (Gold Layer Query).
-    Executa busca por similaridade semantica no ChromaDB para a query corrente.
+    Executa busca por similaridade semantica no ChromaDB para a query corrente,
+    respeitando o filtro de data (as_of_date) para prevencao de Lookahead Bias.
     """
     query = state.get("current_query") or state["question"]
-    print(f"\n[NO: RETRIEVE] Executando busca vetorial para: '{query}'")
+    as_of_date = state.get("as_of_date")
     
-    vector_store = load_or_build_gold_vectorstore()
-    retriever = vector_store.as_retriever(search_kwargs={"k": TOP_K_DOCUMENTS})
+    if as_of_date:
+        print(f"\n[NO: RETRIEVE] Executando busca vetorial Point-in-Time (as_of={as_of_date}) para: '{query}'")
+        retriever = get_temporal_retriever(as_of_date=as_of_date, k=TOP_K_DOCUMENTS)
+    else:
+        print(f"\n[NO: RETRIEVE] Executando busca vetorial para: '{query}'")
+        vector_store = load_or_build_gold_vectorstore()
+        retriever = vector_store.as_retriever(search_kwargs={"k": TOP_K_DOCUMENTS})
+
     docs = retriever.invoke(query)
-    
     print(f"[NO: RETRIEVE] {len(docs)} chunks extraidos da camada Gold.")
     return {"documents": docs}
 
 
 def grade_documents_node(state: AgentState) -> Dict[str, Any]:
     """
-    No 2: Data Quality Gate (Document Relevance Grader).
-    Filtra ruído e chunks irrelevantes atraves de classificacao binaria estruturada.
+    No 2: Data Quality Gate (Batch Document Relevance Grader).
+    Filtra ruído e chunks irrelevantes em UMA UNICA inferencia otimizada (4x mais rapido).
     """
     question = state["question"]
     documents = state.get("documents", [])
-    print(f"\n[NO: GRADE_DOCS] Validando qualidade de {len(documents)} chunks...")
+    print(f"\n[NO: GRADE_DOCS] Validando qualidade de {len(documents)} chunks em lote...")
     
-    grader = create_doc_grader()
-    filtered_docs: List[Document] = []
-    
+    if not documents:
+        return {"documents": []}
+
+    batch_parts = []
     for idx, doc in enumerate(documents, start=1):
         page = doc.metadata.get("page", "?")
-        try:
-            res = grader.invoke({"question": question, "document": doc.page_content})
-            score = getattr(res, "binary_score", "yes").lower()
-            reason = getattr(res, "reason", "")
-        except Exception as e:
-            print(f"    Chunk {idx} (Pag {page}): Fallback de seguranca ativado ({e}).")
-            score = "yes"
-            reason = "fallback"
+        preview = doc.page_content[:300].replace("\n", " ")
+        batch_parts.append(f"Trecho [{idx}] (Pag {page}): {preview}")
+    documents_batch_str = "\n\n".join(batch_parts)
 
-        if score == "yes":
-            print(f"    [+] Chunk {idx} (Pag {page}): APROVADO. {reason}")
-            filtered_docs.append(doc)
-        else:
-            print(f"    [-] Chunk {idx} (Pag {page}): DESCARTADO (Ruido). {reason}")
+    batch_grader = create_batch_doc_grader()
+    try:
+        res = batch_grader.invoke({
+            "question": question,
+            "documents_batch": documents_batch_str,
+        })
+        relevant_indices = getattr(res, "relevant_indices", list(range(1, len(documents) + 1)))
+        rationale = getattr(res, "rationale", "")
+        print(f"    [Batch Grader] Trechos aprovados: {relevant_indices} ({rationale})")
+        
+        filtered_docs = [
+            doc for idx, doc in enumerate(documents, start=1)
+            if idx in relevant_indices
+        ]
+        if not filtered_docs and documents:
+            print("    [Batch Grader] Nenhum trecho atendeu ao limiar estrito.")
+    except Exception as e:
+        print(f"    Fallback de seguranca ativado ({e}). Todos os chunks aprovados.")
+        filtered_docs = documents
 
     return {"documents": filtered_docs}
 

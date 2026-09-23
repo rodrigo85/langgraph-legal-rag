@@ -119,6 +119,30 @@ def load_or_build_gold_vectorstore(
     return vector_store
 
 
+def get_temporal_retriever(
+    as_of_date: Optional[str] = None,
+    k: int = 4,
+    vector_store: Optional[Chroma] = None,
+):
+    """
+    Retorna o retriever vetorial da camada Gold com filtro Point-in-Time.
+    Se as_of_date for fornecido (ex: '2023-09-26'), filtra apenas chunks com
+    disclosure_date <= as_of_date, garantindo integridade e prevenindo Lookahead Bias.
+    """
+    if vector_store is None:
+        vector_store = load_or_build_gold_vectorstore()
+
+    if as_of_date:
+        as_of_int = int(as_of_date.replace("-", ""))
+        filter_expr = {"disclosure_date_int": {"$lte": as_of_int}}
+        return vector_store.as_retriever(
+            search_kwargs={"k": k, "filter": filter_expr}
+        )
+
+    return vector_store.as_retriever(search_kwargs={"k": k})
+
+
 if __name__ == "__main__":
     load_or_build_gold_vectorstore()
+
 
