@@ -62,7 +62,8 @@ def chunk_silver_documents(
 
     for idx, chunk in enumerate(raw_chunks, start=1):
         meta = dict(chunk.metadata)
-        meta["chunk_id"] = f"doc1033_p{meta.get('page', 0)}_c{idx}"
+        docket_tag = f"doc{meta.get('docket_number', 1033)}"
+        meta["chunk_id"] = f"{docket_tag}_p{meta.get('page', 0)}_c{idx}"
         enriched_chunks.append(Document(page_content=chunk.page_content, metadata=meta))
 
     print(f"[GOLD] Total de chunks enriquecidos gerados: {len(enriched_chunks)}")
