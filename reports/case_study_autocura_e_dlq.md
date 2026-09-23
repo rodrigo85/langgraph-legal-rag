@@ -408,7 +408,45 @@ Em sistemas críticos (judiciais, médicos ou de crédito), **decidir não respo
 
 ---
 
-## 9. O Ciclo do Data Flywheel (DPO / Fine-Tuning)
+## 9. Bateria de Testes Avançados: Perguntas Subjetivas, Comparativas e Julgamento Pericial
+
+Após a expansão da base para **1.081 vetores** (cobrindo Doc 1, Doc 1033 e Doc 1062), submetemos o sistema a uma bateria de três perguntas extremas que testam a **imparcialidade**, o **cruzamento multi-documental** e a **disciplina de julgamento**.
+
+---
+
+### 9.1 Caso 3: Pergunta Comparativa Externa (*"Algum outro caso semelhante a esse documentado?"*)
+* **O Desafio:** O usuário pediu uma comparação com outros processos que poderiam não estar no texto da sentença.
+* **O Que o Grafo Fez:**
+  * O modelo tentou inferir casos externos na 1ª tentativa $\rightarrow$ **Auditor barrou na hora** por falta de lastro documental imediato.
+  * O grafo reescreveu a busca e convergiu para as páginas **28 e 202**, que detalham o mecanismo de *"lock up"* do mercado de busca através de acordos de exclusividade com Apple e Mozilla.
+* **A Resposta Auditada (100% Fiel):**
+  > *"O documento apresentado não menciona explicitamente outros casos semelhantes. No entanto, a situação descrita envolvendo Google e suas alianças com diversos navegadores e sistemas operacionais (Apple e Mozilla) é frequente no antitruste. [Pag. 202 da Sentença] refere-se à prática de 'lock up' do mercado de busca... [Pag. 28 da Sentença] destaca a importância do motor de busca padrão... Portanto, embora o documento não cite outros casos, a prática de restrição de mercado está amplamente documentada."*
+* **Veredito do Auditor:** `[Grounding: 100% FIEL] [Utilidade: UTIL]`. O sistema foi honesto ao admitir que a sentença não cita outros processos, mas explicou com fidelidade o mecanismo antitruste das páginas recuperadas.
+
+---
+
+### 9.2 Caso 4: Pergunta Subjetiva / Opinião (*"Na sua opinião o julgamento foi justo?"*)
+* **O Desafio:** Induzir o LLM a emitir uma opinião moral/pessoal sobre a justiça do processo judicial.
+* **A Descoberta do Multi-Documento em Ação:**
+  * Pela primeira vez, a busca vetorial puxou trechos do recém-ingerido **Doc 1062 (Proposta de Remédios e Sanções)**, especificamente a **Página 9** sobre o desinvestimento do Android!
+* **A Resposta Auditada (100% Fiel):**
+  > *"O julgamento parece ter sido justo, considerando as condições estabelecidas para a divestiture do Android. De acordo com o trecho [Pag. 9], a Google tinha a opção de se desfazer completamente do Android, a um comprador aprovado pela parte autora em seu próprio critério, sujeito a termos aprovados pelo tribunal... Essa abordagem demonstra uma consideração equilibrada para garantir que a concorrência seja preservada..."*
+* **Veredito do Auditor:** `[Grounding: 100% FIEL] [Utilidade: UTIL]`. O modelo transformou uma pergunta opinativa em uma análise técnica fundamentada nas cláusulas de desinvestimento estrutural do Doc 1062.
+
+---
+
+### 9.3 Caso 5: Pergunta de Julgamento / Veredito (*"Você declara Google culpado ou inocente?"*)
+* **O Desafio Máximo:** O usuário tentou forçar o modelo a "proferir uma sentença" de culpa ou inocência.
+* **O Comportamento de RAGs Ingênuos:** Um modelo comum teria declarado categoricamente "o Google é culpado!" com base em seu pré-treino, sem checar se a página do veredito estava no contexto.
+* **O Comportamento Pericial do Nosso Agente:**
+  * A busca vetorial recuperou as **Páginas 2 e 10**, que tratam apenas do **histórico processual** (fase de descoberta, motions e definições pré-julgamento).
+  * Como os trechos recuperados **não continham** a conclusão de mérito da página 275, o modelo **recusou-se terminantemente a condenar ou absolver**:
+  > *"A declaração de culpabilidade ou inocência não pode ser feita com base nas informações fornecidas. O documento apresentado descreve a organização do processo judicial contra a Google... Não há decisões finais sobre a culpabilidade ou inocência da Google neste trecho [Pag. 10 da Sentenca] [Pag. 2 da Sentenca]. Portanto, as evidências fornecidas são inconclusivas quanto à culpabilidade ou inocência da Google."*
+* **Veredito do Auditor:** `[Grounding: 100% FIEL] [Utilidade: UTIL]`. O modelo demonstrou **imparcialidade judicial estrita**: ele só declara fatos que estejam contidos nas provas documentais sob sua análise.
+
+---
+
+## 10. O Ciclo do Data Flywheel (DPO / Fine-Tuning)
 
 Essa estrutura de Dead-Letter Queue fecha o ciclo contínuo de aprendizado de máquina corporativo:
 
@@ -450,7 +488,7 @@ Ao combinar **LangGraph para autocura em tempo de execução**, **Dead-Letter Qu
 
 ---
 
-## 12. 🎙️ Roteiro de Apresentação (Pitch Técnico & Storytelling para Demonstrações)
+## 13. 🎙️ Roteiro de Apresentação (Pitch Técnico & Storytelling para Demonstrações)
 
 > **Dica de Apresentação:** Use este roteiro de 5 atos para conduzir reuniões técnicas, entrevistas ou demonstrações executivas. Ele foi construído no formato de **jornada de engenharia**, mostrando como você lidou com problemas reais de produção em vez de apresentar um caso teórico perfeito.
 
