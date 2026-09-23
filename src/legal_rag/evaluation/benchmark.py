@@ -8,12 +8,8 @@ Runs a systematic comparative benchmark between:
 import sys
 import time
 import json
-from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -22,11 +18,11 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-from src.config import BENCHMARK_DATASET_PATH, TOP_K_DOCUMENTS
-from src.pipeline.indexer import load_or_build_gold_vectorstore
-from src.chains.generator import create_generator
-from src.chains.hallucination_grader import create_hallucination_grader
-from src.agent.graph import build_graph
+from legal_rag.config import BENCHMARK_DATASET_PATH, TOP_K_DOCUMENTS
+from legal_rag.pipeline.indexer import load_or_build_gold_vectorstore
+from legal_rag.chains.generator import create_generator
+from legal_rag.chains.hallucination_grader import create_hallucination_grader
+from legal_rag.agent.graph import build_graph
 
 console = Console()
 

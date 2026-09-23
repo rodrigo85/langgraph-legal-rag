@@ -4,23 +4,18 @@ Assembles the Self-RAG finite state machine, wiring together retrieval,
 quality-grading, and self-correction loop nodes.
 """
 
-import sys
-from pathlib import Path
 from langgraph.graph import StateGraph, END
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.agent.state import AgentState
-from src.agent.nodes import (
+from legal_rag.agent.state import AgentState
+from legal_rag.agent.nodes import (
     retrieve_node,
     grade_documents_node,
     generate_node,
     rewrite_query_node,
     fallback_node,
 )
-from src.agent.edges import (
+from legal_rag.agent.edges import (
     decide_to_generate,
     grade_generation_v_documents_and_question,
 )

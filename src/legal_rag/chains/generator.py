@@ -6,9 +6,8 @@ with mandatory page citations from Judge Amit Mehta's opinion.
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_ollama import ChatOllama
 
-from src.config import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL, OLLAMA_KEEP_ALIVE
+from legal_rag.providers import get_chat_model
 
 
 import re
@@ -33,13 +32,7 @@ def create_generator():
     """
     Builds the grounded answer synthesis chain.
     """
-    llm = ChatOllama(
-        model=OLLAMA_LLM_MODEL,
-        temperature=0.1,
-        base_url=OLLAMA_BASE_URL,
-        num_predict=600,
-        keep_alive=OLLAMA_KEEP_ALIVE,
-    )
+    llm = get_chat_model(temperature=0.1, max_tokens=600)
 
     system_prompt = """Voce e um Perito Forense e Pesquisador Especialista no processo antitruste federal U.S. v. Google LLC.
 Sua missao e fornecer respostas objetivas, diretas e 100% ancoradas nas evidencias documentais fornecidas nos trechos abaixo.

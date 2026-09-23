@@ -32,3 +32,8 @@ data/processed/
 
 # Environment
 .env
+
+# Packaging
+*.egg-info/
+build/
+dist/

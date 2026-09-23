@@ -4,12 +4,9 @@ Provides temporal metadata, trial milestones and helpers for Point-in-Time RAG.
 """
 
 import json
-from pathlib import Path
 from typing import Dict, Any, List, Optional
-from datetime import datetime
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-DOCKETS_REGISTRY_PATH = PROJECT_ROOT / "data" / "metadata" / "dockets_registry.json"
+from legal_rag.config import DOCKETS_REGISTRY_PATH
 
 
 def load_dockets_registry() -> Dict[str, Any]:

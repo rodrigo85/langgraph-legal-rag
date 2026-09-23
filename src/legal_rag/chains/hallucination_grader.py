@@ -7,9 +7,8 @@ is directly supported by the retrieved documents (Grounding Check).
 from typing import Literal
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_ollama import ChatOllama
 
-from src.config import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL, OLLAMA_KEEP_ALIVE
+from legal_rag.providers import get_chat_model
 
 
 class GradeHallucinations(BaseModel):
@@ -26,13 +25,7 @@ def create_hallucination_grader():
     """
     Builds the factual hallucination detection chain.
     """
-    llm = ChatOllama(
-        model=OLLAMA_LLM_MODEL,
-        temperature=0,
-        base_url=OLLAMA_BASE_URL,
-        num_predict=150,
-        keep_alive=OLLAMA_KEEP_ALIVE,
-    )
+    llm = get_chat_model(temperature=0, max_tokens=150)
 
     system_prompt = """Voce e um Auditor de Integridade Factual de Inteligencia Artificial.
 Sua unica tarefa e avaliar se a resposta gerada esta 100% ancorada (grounded) nos fatos contidos nos trechos de documentos fornecidos.
@@ -71,13 +64,7 @@ def create_unified_quality_grader():
     Builds a unified auditor that checks grounding and usefulness in a single inference.
     Saves 50% of the final audit time.
     """
-    llm = ChatOllama(
-        model=OLLAMA_LLM_MODEL,
-        temperature=0,
-        base_url=OLLAMA_BASE_URL,
-        num_predict=150,
-        keep_alive=OLLAMA_KEEP_ALIVE,
-    )
+    llm = get_chat_model(temperature=0, max_tokens=150)
 
     system_prompt = """Voce e o Auditor Chefe de Qualidade e Integridade Factual do sistema de IA pericial.
 Sua missao e auditar a resposta gerada sob dois criterios rigorosos:

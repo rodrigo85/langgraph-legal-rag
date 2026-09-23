@@ -3,21 +3,17 @@ DAG Execution Nodes (LangGraph Nodes).
 Each node is a deterministic processing, filtering, or generation step.
 """
 
-import sys
-from pathlib import Path
-from typing import List, Dict, Any
-from langchain_core.documents import Document
+import logging
+from typing import Any, Dict
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from legal_rag.agent.state import AgentState
+from legal_rag.chains.doc_grader import create_batch_doc_grader
+from legal_rag.chains.generator import create_generator
+from legal_rag.chains.query_rewriter import create_query_rewriter
+from legal_rag.config import MAX_RETRIES, TOP_K_DOCUMENTS
+from legal_rag.pipeline.indexer import get_temporal_retriever, load_or_build_gold_vectorstore
 
-from src.agent.state import AgentState
-from src.config import TOP_K_DOCUMENTS, MAX_RETRIES
-from src.pipeline.indexer import load_or_build_gold_vectorstore, get_temporal_retriever
-from src.chains.doc_grader import create_doc_grader, create_batch_doc_grader
-from src.chains.query_rewriter import create_query_rewriter
-from src.chains.generator import create_generator
+logger = logging.getLogger(__name__)
 
 
 def retrieve_node(state: AgentState) -> Dict[str, Any]:
@@ -30,15 +26,15 @@ def retrieve_node(state: AgentState) -> Dict[str, Any]:
     as_of_date = state.get("as_of_date")
     
     if as_of_date:
-        print(f"\n[NODE: RETRIEVE] Running Point-in-Time vector search (as_of={as_of_date}) for: '{query}'")
+        logger.info("node.retrieve", extra={"query": query, "as_of_date": as_of_date})
         retriever = get_temporal_retriever(as_of_date=as_of_date, k=TOP_K_DOCUMENTS)
     else:
-        print(f"\n[NODE: RETRIEVE] Running vector search for: '{query}'")
+        logger.info("node.retrieve", extra={"query": query})
         vector_store = load_or_build_gold_vectorstore()
         retriever = vector_store.as_retriever(search_kwargs={"k": TOP_K_DOCUMENTS})
 
     docs = retriever.invoke(query)
-    print(f"[NODE: RETRIEVE] {len(docs)} chunks retrieved from the Gold layer.")
+    logger.info("node.retrieve.done", extra={"chunks": len(docs)})
     return {"documents": docs}
 
 
@@ -49,7 +45,7 @@ def grade_documents_node(state: AgentState) -> Dict[str, Any]:
     """
     question = state["question"]
     documents = state.get("documents", [])
-    print(f"\n[NODE: GRADE_DOCS] Batch-grading quality of {len(documents)} chunks...")
+    logger.info("node.grade_documents", extra={"chunks": len(documents)})
     
     if not documents:
         return {"documents": []}
@@ -69,16 +65,16 @@ def grade_documents_node(state: AgentState) -> Dict[str, Any]:
         })
         relevant_indices = getattr(res, "relevant_indices", list(range(1, len(documents) + 1)))
         rationale = getattr(res, "rationale", "")
-        print(f"    [Batch Grader] Approved chunks: {relevant_indices} ({rationale})")
+        logger.info("node.grade_documents.done", extra={"approved": relevant_indices, "rationale": rationale})
         
         filtered_docs = [
             doc for idx, doc in enumerate(documents, start=1)
             if idx in relevant_indices
         ]
         if not filtered_docs and documents:
-            print("    [Batch Grader] No chunk met the strict threshold.")
+            logger.info("node.grade_documents.none_approved")
     except Exception as e:
-        print(f"    Safety fallback triggered ({e}). All chunks approved.")
+        logger.warning("node.grade_documents.error", extra={"error": str(e), "action": "approve_all"})
         filtered_docs = documents
 
     return {"documents": filtered_docs}
@@ -91,17 +87,16 @@ def rewrite_query_node(state: AgentState) -> Dict[str, Any]:
     """
     question = state["question"]
     retry_count = state.get("retry_count", 0) + 1
-    print(f"\n[NODE: REWRITE_QUERY] Self-correction cycle {retry_count}/{MAX_RETRIES}...")
+    logger.info("node.rewrite_query", extra={"cycle": retry_count, "max_retries": MAX_RETRIES})
     
     rewriter = create_query_rewriter()
     try:
         res = rewriter.invoke({"question": question})
         improved_query = getattr(res, "improved_query", question)
         rationale = getattr(res, "rationale", "")
-        print(f"    [->] Optimized query: '{improved_query}'")
-        print(f"    [->] Rationale: {rationale}")
+        logger.info("node.rewrite_query.done", extra={"improved_query": improved_query, "rationale": rationale})
     except Exception as e:
-        print(f"    Query rewrite failed: {e}. Applying deterministic expansion.")
+        logger.warning("node.rewrite_query.error", extra={"error": str(e), "action": "deterministic_expansion"})
         improved_query = f"{question} Google Apple ISA search agreement antitrust"
 
     return {
@@ -121,13 +116,13 @@ def generate_node(state: AgentState) -> Dict[str, Any]:
     generation_attempts = state.get("generation_attempts", 0) + 1
     
     if generation_attempts > 1:
-        print(f"\n[NODE: GENERATE] Retry {generation_attempts} (reinforced literal grounding)...")
+        logger.info("node.generate", extra={"attempt": generation_attempts, "mode": "reinforced_grounding"})
         effective_question = (
             f"{question} (ATENCAO: Seja estritamente literal ao texto fornecido. "
             "Se os fatos exatos nao constarem expressamente nos trechos, afirme que a evidencia e inconclusiva.)"
         )
     else:
-        print(f"\n[NODE: GENERATE] Synthesizing answer from {len(documents)} approved chunks...")
+        logger.info("node.generate", extra={"attempt": generation_attempts, "chunks": len(documents)})
         effective_question = question
     
     formatted_context_parts = []
@@ -157,7 +152,7 @@ def fallback_node(state: AgentState) -> Dict[str, Any]:
     Triggered when DAG retries are exhausted without reaching 100% factual grounding.
     Ensures no hallucination is delivered to the end user.
     """
-    print("\n[NODE: FALLBACK] Abstaining to prevent hallucination from propagating...")
+    logger.info("node.fallback")
     documents = state.get("documents", [])
     pages = sorted(list(set([str(d.metadata.get("page", "?")) for d in documents])))
     pages_str = ", ".join(pages) if pages else "N/A"

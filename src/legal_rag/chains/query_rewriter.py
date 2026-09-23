@@ -6,9 +6,8 @@ and contractual terminology of the U.S. v. Google antitrust case.
 
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_ollama import ChatOllama
 
-from src.config import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL, OLLAMA_KEEP_ALIVE
+from legal_rag.providers import get_chat_model
 
 
 class RewrittenQuery(BaseModel):
@@ -25,13 +24,7 @@ def create_query_rewriter():
     """
     Builds the query transformation chain to maximize semantic recall.
     """
-    llm = ChatOllama(
-        model=OLLAMA_LLM_MODEL,
-        temperature=0.2,
-        base_url=OLLAMA_BASE_URL,
-        num_predict=150,
-        keep_alive=OLLAMA_KEEP_ALIVE,
-    )
+    llm = get_chat_model(temperature=0.2, max_tokens=150)
 
     system_prompt = """Voce e um assistente juridico especializado no processo federal antitruste U.S. v. Google (Doc 1033 - Sentenca do Juiz Amit Mehta).
 O documento original esta em ingles e contem jargoes tecnicos especificos como:

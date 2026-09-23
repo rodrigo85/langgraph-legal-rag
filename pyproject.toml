@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "legal-rag"
+version = "1.0.0"
+description = "Self-correcting RAG (LangGraph) over the U.S. v. Google antitrust court record, cloud-agnostic (AWS / Azure / local)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Rodrigo Andreatta da Costa" }]
+dependencies = [
+    "langgraph==1.2.12",
+    "langchain-core==1.6.4",
+    "langchain-ollama==1.1.0",
+    "langchain-text-splitters==1.1.2",
+    "langchain-chroma==1.1.0",
+    "chromadb==1.5.9",
+    "pypdf==6.19.0",
+    "pydantic==2.13.5",
+    "pydantic-settings==2.15.0",
+    "python-dotenv==1.2.3",
+    "rich==15.0.0",
+    "typing_extensions==4.16.0",
+]
+
+[project.optional-dependencies]
+api = ["fastapi==0.141.1", "uvicorn[standard]==0.53.0"]
+pgvector = ["langchain-postgres==0.0.18", "psycopg[binary]==3.3.6", "SQLAlchemy==2.0.54"]
+aws = ["langchain-aws==1.7.9", "boto3==1.43.100"]
+azure = ["langchain-openai==1.6.5", "azure-storage-blob==12.30.3"]
+otel = [
+    "opentelemetry-sdk==1.44.0",
+    "opentelemetry-exporter-otlp-proto-http==1.44.0",
+    "opentelemetry-instrumentation-fastapi==0.65b0",
+]
+dev = [
+    "legal-rag[api,pgvector,aws,azure,otel]",
+    "pytest==9.1.1",
+    "httpx==0.28.1",
+    "moto[s3]==5.2.3",
+    "ruff==0.16.8",
+    "pre-commit==4.6.2",
+]
+
+[project.scripts]
+legal-rag = "legal_rag.cli:run_cli"
+legal-rag-api = "legal_rag.api.main:run"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"legal_rag.training" = ["Modelfile", "Modelfile.v2"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "UP006", "UP035", "UP045"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: requires Ollama and an indexed Gold layer (run with -m integration)",
+]
+addopts = "-m 'not integration'"

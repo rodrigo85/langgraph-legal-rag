@@ -12,12 +12,8 @@ import urllib.request
 from pathlib import Path
 from typing import Dict, Any
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.config import (
-    BRONZE_RAW_DIR,
+from legal_rag.config import (
     OPINION_PDF_PATH,
     COMPLAINT_PDF_PATH,
     REMEDIES_PDF_PATH,

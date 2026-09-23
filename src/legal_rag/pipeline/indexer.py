@@ -3,42 +3,21 @@ Gold Layer - Semantic Chunking and Vector Lake Load.
 Runs the Silver -> Gold transformation:
 1. Semantic text partitioning (RecursiveCharacterTextSplitter)
 2. Preservation and propagation of lineage metadata (page, source_file, chunk_id)
-3. Idempotent load into ChromaDB with vector embeddings (nomic-embed-text).
+3. Idempotent load into the configured vector store (ChromaDB locally, pgvector in the cloud).
 """
 
-import sys
-from pathlib import Path
+import logging
 from typing import List, Optional
+
 from langchain_core.documents import Document
+from langchain_core.vectorstores import VectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from legal_rag.config import CHUNK_OVERLAP, CHUNK_SIZE, settings
+from legal_rag.pipeline.parser import load_silver_documents
+from legal_rag.storage.vector_store import count_vectors, get_vector_store, reset_collection
 
-try:
-    from langchain_chroma import Chroma
-except ImportError:
-    from langchain_community.vectorstores import Chroma
-
-from langchain_ollama import OllamaEmbeddings
-from src.config import (
-    GOLD_CHROMA_DIR,
-    GOLD_COLLECTION_NAME,
-    OLLAMA_BASE_URL,
-    OLLAMA_EMBED_MODEL,
-    CHUNK_SIZE,
-    CHUNK_OVERLAP,
-)
-from src.pipeline.parser import load_silver_documents
-
-
-def get_embedding_function() -> OllamaEmbeddings:
-    """Returns the configured embedding function."""
-    return OllamaEmbeddings(
-        model=OLLAMA_EMBED_MODEL,
-        base_url=OLLAMA_BASE_URL,
-    )
+logger = logging.getLogger(__name__)
 
 
 def chunk_silver_documents(
@@ -50,7 +29,7 @@ def chunk_silver_documents(
     Splits Silver-layer documents into chunks calibrated for legal documents.
     Generates granular lineage metadata for each chunk.
     """
-    print(f"[GOLD] Starting semantic chunking (size={chunk_size}, overlap={chunk_overlap})...")
+    logger.info("gold.chunking", extra={"chunk_size": chunk_size, "chunk_overlap": chunk_overlap})
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
@@ -66,64 +45,50 @@ def chunk_silver_documents(
         meta["chunk_id"] = f"{docket_tag}_p{meta.get('page', 0)}_c{idx}"
         enriched_chunks.append(Document(page_content=chunk.page_content, metadata=meta))
 
-    print(f"[GOLD] Total enriched chunks generated: {len(enriched_chunks)}")
+    logger.info("gold.chunks_generated", extra={"chunks": len(enriched_chunks)})
     return enriched_chunks
 
 
 def load_or_build_gold_vectorstore(
     chunks: Optional[List[Document]] = None,
-    persist_dir: Path = GOLD_CHROMA_DIR,
-    collection_name: str = GOLD_COLLECTION_NAME,
     force_reindex: bool = False,
-) -> Chroma:
+) -> VectorStore:
     """
     Idempotent load into the Gold layer:
     If the collection already exists and contains vectors, it is reused without reprocessing.
     If force_reindex=True or the collection is empty, embeddings are generated and indexed.
     """
-    embeddings = get_embedding_function()
-    persist_dir.mkdir(parents=True, exist_ok=True)
+    vector_store = get_vector_store()
 
-    vector_store = Chroma(
-        collection_name=collection_name,
-        embedding_function=embeddings,
-        persist_directory=str(persist_dir),
-    )
-
-    existing_count = vector_store._collection.count()
+    existing_count = count_vectors(vector_store)
     if existing_count > 0 and not force_reindex:
-        print(f"[GOLD] Vector Lake operational with {existing_count} vectors indexed in: {persist_dir.name}")
+        logger.info("gold.ready", extra={"vectors": existing_count, "backend": settings.vector_store})
         return vector_store
 
     if existing_count > 0 and force_reindex:
-        print(f"[GOLD] Forced reindex: resetting collection '{collection_name}' ({existing_count} vectors)...")
-        vector_store._client.delete_collection(collection_name)
-        vector_store = Chroma(
-            collection_name=collection_name,
-            embedding_function=embeddings,
-            persist_directory=str(persist_dir),
-        )
+        logger.info("gold.reindex", extra={"vectors": existing_count, "collection": settings.collection_name})
+        vector_store = reset_collection(vector_store)
 
     if chunks is None:
         silver_docs = load_silver_documents()
         chunks = chunk_silver_documents(silver_docs)
 
-    print(f"[GOLD] Indexing {len(chunks)} chunks into ChromaDB with deterministic IDs...")
+    logger.info("gold.indexing", extra={"chunks": len(chunks), "backend": settings.vector_store})
     batch_size = 100
     for i in range(0, len(chunks), batch_size):
         batch = chunks[i : i + batch_size]
-        batch_ids = [c.metadata.get("chunk_id", f"doc1033_chunk_{i+j}") for j, c in enumerate(batch)]
+        batch_ids = [c.metadata.get("chunk_id", f"chunk_{i + j}") for j, c in enumerate(batch)]
         vector_store.add_documents(batch, ids=batch_ids)
-        print(f"    [GOLD] Batch indexed: {min(i + batch_size, len(chunks))}/{len(chunks)}")
+        logger.info("gold.batch_indexed", extra={"done": min(i + batch_size, len(chunks)), "total": len(chunks)})
 
-    print(f"[GOLD] Load completed successfully. Collection '{collection_name}' is active.")
+    logger.info("gold.load_completed", extra={"collection": settings.collection_name})
     return vector_store
 
 
 def get_temporal_retriever(
     as_of_date: Optional[str] = None,
     k: int = 4,
-    vector_store: Optional[Chroma] = None,
+    vector_store: Optional[VectorStore] = None,
 ):
     """
     Returns the Gold-layer vector retriever with a Point-in-Time filter.
@@ -136,14 +101,13 @@ def get_temporal_retriever(
     if as_of_date:
         as_of_int = int(as_of_date.replace("-", ""))
         filter_expr = {"disclosure_date_int": {"$lte": as_of_int}}
-        return vector_store.as_retriever(
-            search_kwargs={"k": k, "filter": filter_expr}
-        )
+        return vector_store.as_retriever(search_kwargs={"k": k, "filter": filter_expr})
 
     return vector_store.as_retriever(search_kwargs={"k": k})
 
 
 if __name__ == "__main__":
+    from legal_rag.observability import configure_logging
+
+    configure_logging()
     load_or_build_gold_vectorstore()
-
-

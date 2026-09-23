@@ -9,14 +9,10 @@ Generates the executive report 'reports/data_quality_audit.md'.
 
 import sys
 import json
-import math
+import re
 import pypdf
-from pathlib import Path
 from typing import Dict, Any, List
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -25,16 +21,16 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-from src.config import (
+from legal_rag.config import (
     OPINION_PDF_PATH,
     SILVER_CORPUS_JSONL,
-    GOLD_CHROMA_DIR,
-    GOLD_COLLECTION_NAME,
+    REPORTS_DIR,
+    TRAINING_DATA_DIR,
 )
-from src.pipeline.indexer import load_or_build_gold_vectorstore
+from legal_rag.pipeline.indexer import load_or_build_gold_vectorstore
+from legal_rag.storage.vector_store import count_vectors, fetch_all_chunks
 
 console = Console()
-REPORTS_DIR = PROJECT_ROOT / "reports"
 AUDIT_REPORT_MD = REPORTS_DIR / "data_quality_audit.md"
 
 
@@ -86,16 +82,14 @@ def audit_bronze_to_silver() -> Dict[str, Any]:
 
 
 def audit_silver_to_gold(silver_records: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Audits chunking, coverage and embeddings between Silver and Gold (ChromaDB)."""
+    """Audits chunking, coverage and embeddings between Silver and Gold (vector store)."""
     print("[*] Auditing Silver Layer (JSONL) vs Gold Layer (Vector Lake)...")
     
     vector_store = load_or_build_gold_vectorstore()
-    gold_count = vector_store._collection.count()
-    
-    # Extract metadata from the ChromaDB collection
-    all_data = vector_store._collection.get(include=["metadatas", "documents"])
-    metadatas = all_data.get("metadatas", [])
-    documents = all_data.get("documents", [])
+    gold_count = count_vectors(vector_store)
+
+    # Extract metadata from the Gold collection (backend-agnostic)
+    metadatas, documents = fetch_all_chunks(vector_store)
 
     # 1. Coverage of Silver pages in Gold
     pages_in_gold = set()
@@ -105,7 +99,7 @@ def audit_silver_to_gold(silver_records: List[Dict[str, Any]]) -> Dict[str, Any]
         p = m.get("page")
         if p is not None:
             pages_in_gold.add(int(p))
-        if m.get("chunk_id", "").startswith("doc1033_p"):
+        if re.match(r"^doc\d+_p\d+_c\d+$", m.get("chunk_id", "")):
             chunks_with_valid_id += 1
 
     silver_pages = set(r["page"] for r in silver_records)
@@ -142,8 +136,8 @@ def audit_training_reconciliation(silver_records: List[Dict[str, Any]]) -> Dict[
     """Audits lineage and compliance of the training datasets against the Silver Layer."""
     print("[*] Auditing Silver Layer vs Training Layer (SFT / CoT / DPO)...")
     
-    cot_file = PROJECT_ROOT / "data" / "training" / "train_cot.jsonl"
-    dpo_file = PROJECT_ROOT / "data" / "training" / "preference_dataset.jsonl"
+    cot_file = TRAINING_DATA_DIR / "train_cot.jsonl"
+    dpo_file = TRAINING_DATA_DIR / "preference_dataset.jsonl"
 
     cot_samples = []
     if cot_file.exists():

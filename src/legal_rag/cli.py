@@ -3,21 +3,17 @@ Interactive CLI for the self-correcting RAG agent (DOJ v. Google).
 """
 
 import sys
-from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
 from rich.prompt import Prompt
 
-from src.agent.graph import build_graph
+from legal_rag.agent.graph import build_graph
 
 console = Console()
 

@@ -13,12 +13,8 @@ sectioned structure. Citations are checked for FORMAT only, not page validity
 import sys
 import time
 import re
-from pathlib import Path
 from typing import Dict, Any, List
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -29,10 +25,9 @@ from rich.panel import Panel
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage
 
-from src.config import OLLAMA_BASE_URL
+from legal_rag.config import OLLAMA_BASE_URL, REPORTS_DIR
 
 console = Console()
-REPORTS_DIR = PROJECT_ROOT / "reports"
 REPORT_MD_FILE = REPORTS_DIR / "training_evolution.md"
 CHART_3GEN_SVG = REPORTS_DIR / "evolution_3_generations.svg"
 

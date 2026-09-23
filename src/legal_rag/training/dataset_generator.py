@@ -5,19 +5,14 @@ Transforms raw and structured Silver-layer data (Doc 1033) into
 LoRA fine-tune. No model weights have been trained on this dataset yet.
 """
 
-import sys
 import json
 import random
-from pathlib import Path
 from typing import List, Dict, Any
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.config import SILVER_CORPUS_JSONL
+from legal_rag.config import SILVER_CORPUS_JSONL, TRAINING_DATA_DIR
 
-TRAINING_DIR = PROJECT_ROOT / "data" / "training"
+TRAINING_DIR = TRAINING_DATA_DIR
 TRAIN_FILE = TRAINING_DIR / "train.jsonl"
 EVAL_FILE = TRAINING_DIR / "eval.jsonl"
 META_FILE = TRAINING_DIR / "dataset_metadata.json"
@@ -148,7 +143,7 @@ def generate_sft_dataset() -> None:
     with open(META_FILE, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    print(f"[OK] SFT dataset generated successfully!")
+    print("[OK] SFT dataset generated successfully!")
     print(f"     -> Train: {len(train_data)} samples in {TRAIN_FILE.name}")
     print(f"     -> Eval: {len(eval_data)} samples in {EVAL_FILE.name}")
     print(f"     -> Metadata written to {META_FILE.name}")

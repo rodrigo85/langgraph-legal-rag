@@ -3,19 +3,14 @@ Conditional Edges and Decision Validators (Routing & Validation Gates).
 Implements the DAG's inspection and flow-decision points for self-correction.
 """
 
-import sys
-import json
-from pathlib import Path
-from datetime import datetime, timezone
+import logging
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from legal_rag.agent.state import AgentState
+from legal_rag.chains.hallucination_grader import create_unified_quality_grader
+from legal_rag.config import MAX_RETRIES
+from legal_rag.storage.dlq import build_incident_record, log_incident
 
-from src.agent.state import AgentState
-from src.config import MAX_RETRIES, HALLUCINATIONS_LOG_PATH
-from src.chains.hallucination_grader import create_hallucination_grader, create_unified_quality_grader
-from src.chains.answer_grader import create_answer_grader
+logger = logging.getLogger(__name__)
 
 
 def log_hallucination_incident(
@@ -28,26 +23,11 @@ def log_hallucination_incident(
     """
     Dead-Letter Queue (DLQ) for hallucination auditing:
     Persists the incident (rejected draft, document context, and auditor verdict)
-    to JSONL, feeding a data flywheel for future DPO / fine-tuning.
+    to the configured sink (JSONL / S3 / Azure Blob), feeding a data flywheel
+    for future DPO / fine-tuning.
     """
-    try:
-        HALLUCINATIONS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        incident_record = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "question": question,
-            "retry_cycle": retry_count,
-            "rejected_generation": generation,
-            "audit_summary": audit_summary,
-            "retrieved_pages": [d.metadata.get("page") for d in documents if hasattr(d, "metadata")],
-            "retrieved_sources": list(set([d.metadata.get("source_file") for d in documents if hasattr(d, "metadata")])),
-            "context_snippets": [d.page_content[:200] for d in documents if hasattr(d, "page_content")],
-        }
-        with open(HALLUCINATIONS_LOG_PATH, "a", encoding="utf-8") as f:
-            f.write(json.dumps(incident_record, ensure_ascii=False) + "\n")
-        print(f"    [DLQ] Hallucination incident logged to: {HALLUCINATIONS_LOG_PATH.name}")
-    except Exception as err:
-        print(f"    [DLQ Warning] Failed to log hallucination incident: {err}")
-
+    record = build_incident_record(question, generation, documents, audit_summary, retry_count)
+    log_incident(record)
 
 
 def decide_to_generate(state: AgentState) -> str:
@@ -61,13 +41,13 @@ def decide_to_generate(state: AgentState) -> str:
     
     if not documents:
         if retry_count < MAX_RETRIES:
-            print(f"[DECISION] No qualified chunks. Routing to -> REWRITE_QUERY")
+            logger.info("route.decision", extra={"reason": "no_qualified_chunks", "next": "rewrite_query"})
             return "rewrite_query"
         else:
-            print(f"[DECISION] Max retries reached ({retry_count}) with no valid chunks. Routing to -> FALLBACK")
+            logger.info("route.decision", extra={"reason": "max_retries_no_chunks", "retry_count": retry_count, "next": "fallback"})
             return "fallback"
     
-    print(f"[DECISION] Approved chunks ({len(documents)}). Routing to -> GENERATE")
+    logger.info("route.decision", extra={"approved_chunks": len(documents), "next": "generate"})
     return "generate"
 
 
@@ -86,13 +66,13 @@ def grade_generation_v_documents_and_question(state: AgentState) -> str:
     generation_attempts = state.get("generation_attempts", 1)
     
     if not documents:
-        print("[AUDIT] No source documents: routing to FALLBACK.")
+        logger.info("audit.no_documents", extra={"next": "fallback"})
         return "fallback"
 
     doc_text = "\n\n".join([f"--- [Pagina {d.metadata.get('page', '?')}] ---\n{d.page_content}" for d in documents])
     
-    print(f"\n[UNIFIED QUALITY AUDIT] Checking factual faithfulness and usefulness...")
     unified_grader = create_unified_quality_grader()
+    audit_summary = ""
     try:
         res = unified_grader.invoke({
             "documents": doc_text,
@@ -102,10 +82,12 @@ def grade_generation_v_documents_and_question(state: AgentState) -> str:
         is_grounded = getattr(res, "is_grounded", "yes").lower() == "yes"
         is_useful = getattr(res, "is_useful", "yes").lower() == "yes"
         audit_summary = getattr(res, "audit_summary", "")
-        print(f"    [Grounding: {'100% FAITHFUL' if is_grounded else 'HALLUCINATION DETECTED'}] [Usefulness: {'USEFUL' if is_useful else 'INSUFFICIENT'}]")
-        print(f"    Auditor verdict: {audit_summary}")
+        logger.info(
+            "audit.verdict",
+            extra={"grounded": is_grounded, "useful": is_useful, "summary": audit_summary},
+        )
     except Exception as e:
-        print(f"    Unified audit error: {e}. Proceeding via safe fallback.")
+        logger.warning("audit.error", extra={"error": str(e)})
         is_grounded = True
         is_useful = True
 
@@ -119,27 +101,27 @@ def grade_generation_v_documents_and_question(state: AgentState) -> str:
         )
         # First attempt on this chunk set and the DAG still has retry budget
         if generation_attempts < 2 and retry_count < MAX_RETRIES:
-            print(f"    [!] Failed the Grounding Gate (attempt {generation_attempts}) -> Retrying generation with reinforced grounding.")
+            logger.info("route.decision", extra={"reason": "not_grounded", "attempt": generation_attempts, "next": "generate"})
             return "not_grounded"
         
         # Already failed more than once on the same chunks: they lack the required fact!
         # Route to REWRITE_QUERY to force retrieval of new chunks
         if retry_count < MAX_RETRIES:
-            print("    [!] Current chunks are insufficient for hallucination-free grounding. Routing to -> REWRITE_QUERY to fetch new evidence.")
+            logger.info("route.decision", extra={"reason": "insufficient_chunks", "next": "rewrite_query"})
             return "not_useful"
             
         # Global DAG retry limit exhausted: prevent delivering a hallucination
-        print("    [!] DAG retry limit exhausted without grounding -> Routing to FALLBACK (abstention).")
+        logger.info("route.decision", extra={"reason": "retries_exhausted_not_grounded", "next": "fallback"})
         return "fallback"
 
     if not is_useful:
         if retry_count < MAX_RETRIES:
-            print("    [!] Failed the Usefulness Gate -> Routing to REWRITE_QUERY.")
+            logger.info("route.decision", extra={"reason": "not_useful", "next": "rewrite_query"})
             return "not_useful"
         else:
-            print("    [!] Answer still inconclusive after retry limit -> Routing to FALLBACK.")
+            logger.info("route.decision", extra={"reason": "retries_exhausted_not_useful", "next": "fallback"})
             return "fallback"
 
-    print("    [OK] Passed all gates -> Routing to END.")
+    logger.info("route.decision", extra={"reason": "passed_all_gates", "next": "end"})
     return "useful"
 

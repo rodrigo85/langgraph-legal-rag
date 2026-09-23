@@ -20,8 +20,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-TRAINING_SRC_DIR = PROJECT_ROOT / "src" / "training"
+TRAINING_SRC_DIR = Path(__file__).resolve().parent
 
 MODELS = [
     ("antitrust-specialist", TRAINING_SRC_DIR / "Modelfile"),

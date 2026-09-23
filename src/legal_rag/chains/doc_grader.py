@@ -7,9 +7,8 @@ related to the user's investigative question.
 from typing import Literal
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_ollama import ChatOllama
 
-from src.config import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL, OLLAMA_KEEP_ALIVE
+from legal_rag.providers import get_chat_model
 
 
 class GradeDocuments(BaseModel):
@@ -26,13 +25,7 @@ def create_doc_grader():
     """
     Builds the relevance-grading chain with structured output.
     """
-    llm = ChatOllama(
-        model=OLLAMA_LLM_MODEL,
-        temperature=0,
-        base_url=OLLAMA_BASE_URL,
-        num_predict=150,
-        keep_alive=OLLAMA_KEEP_ALIVE,
-    )
+    llm = get_chat_model(temperature=0, max_tokens=150)
 
     system_prompt = """Voce e um perito judicial avaliando a relevancia de trechos de documentos judiciais do caso U.S. v. Google.
 Sua funcao e classificar se o trecho recuperado contem informacoes, palavras-chave, dados ou termos contratuais pertinentes para responder a pergunta.
@@ -68,13 +61,7 @@ def create_batch_doc_grader():
     Builds the batch grading chain that processes ALL chunks in a single inference.
     Cuts filtering latency by up to 75%.
     """
-    llm = ChatOllama(
-        model=OLLAMA_LLM_MODEL,
-        temperature=0,
-        base_url=OLLAMA_BASE_URL,
-        num_predict=150,
-        keep_alive=OLLAMA_KEEP_ALIVE,
-    )
+    llm = get_chat_model(temperature=0, max_tokens=150)
 
     system_prompt = """Voce e um perito judicial avaliando a relevancia de trechos de documentos judiciais do caso U.S. v. Google.
 Sua funcao e analisar a lista de trechos numerados e identificar quais deles contem informacoes, nomes, clausulas ou termos pertinentes para responder a pergunta investigativa.

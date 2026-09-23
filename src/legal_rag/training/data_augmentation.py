@@ -6,19 +6,14 @@ Scans the Silver-layer pages to synthesize:
 These datasets are prepared for a future LoRA fine-tune; no model weights have been trained on them.
 """
 
-import sys
 import json
 import random
-from pathlib import Path
 from typing import List, Dict, Any
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.config import SILVER_CORPUS_JSONL
+from legal_rag.config import SILVER_CORPUS_JSONL, TRAINING_DATA_DIR
 
-TRAINING_DIR = PROJECT_ROOT / "data" / "training"
+TRAINING_DIR = TRAINING_DATA_DIR
 COT_TRAIN_FILE = TRAINING_DIR / "train_cot.jsonl"
 DPO_PREF_FILE = TRAINING_DIR / "preference_dataset.jsonl"
 
@@ -40,7 +35,7 @@ def build_cot_dataset():
     """
     Synthesizes 150+ samples with forensic Chain-of-Thought (CoT) and structured citations.
     """
-    print(f"[*] Starting Chain-of-Thought (CoT) data synthesis...")
+    print("[*] Starting Chain-of-Thought (CoT) data synthesis...")
     pages = load_silver_pages()
 
     cot_samples = []
@@ -143,7 +138,7 @@ def build_cot_dataset():
         for d in dpo_samples:
             f.write(json.dumps(d, ensure_ascii=False) + "\n")
 
-    print(f"[OK] Data augmentation completed successfully!")
+    print("[OK] Data augmentation completed successfully!")
     print(f"     -> CoT dataset: {len(cot_samples)} reasoning samples in {COT_TRAIN_FILE.name}")
     print(f"     -> DPO dataset: {len(dpo_samples)} preference pairs in {DPO_PREF_FILE.name}")
 

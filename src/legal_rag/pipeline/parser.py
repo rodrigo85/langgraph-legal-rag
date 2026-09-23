@@ -4,19 +4,15 @@ Transforms raw data (Bronze PDF) into structured text records (Silver JSONL)
 while preserving full data lineage (page, char_count, document_title).
 """
 
-import sys
 import json
 import hashlib
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 import pypdf
 from langchain_core.documents import Document
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.config import OPINION_PDF_PATH, SILVER_CORPUS_JSONL
+from legal_rag.config import SILVER_CORPUS_JSONL
 
 
 import re
@@ -78,7 +74,7 @@ def extract_page_temporal_metadata(text: str, page_num: int) -> dict:
     }
 
 
-from src.pipeline.downloader import LANDMARK_REGISTRY
+from legal_rag.pipeline.downloader import LANDMARK_REGISTRY
 
 
 def parse_and_clean_pdf(

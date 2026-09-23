@@ -6,15 +6,10 @@ Validates:
 3. Idempotency of the ChromaDB load
 """
 
-import sys
-from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.pipeline.parser import load_silver_documents
-from src.pipeline.indexer import chunk_silver_documents, load_or_build_gold_vectorstore
+from legal_rag.pipeline.parser import load_silver_documents
+from legal_rag.pipeline.indexer import chunk_silver_documents, load_or_build_gold_vectorstore
 
 
 def test_silver_documents_metadata():
