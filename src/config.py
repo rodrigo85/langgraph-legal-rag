@@ -27,6 +27,10 @@ GOLD_COLLECTION_NAME = "antitrust_google_opinion"
 SAMPLES_DIR = PROJECT_ROOT / "data" / "samples"
 BENCHMARK_DATASET_PATH = SAMPLES_DIR / "qa_benchmark.json"
 
+# Observabilidade e Dead-Letter Queue (DLQ) para Auditoria de Alucinações
+DATA_LOGS_DIR = PROJECT_ROOT / "data" / "logs"
+HALLUCINATIONS_LOG_PATH = DATA_LOGS_DIR / "hallucination_incidents.jsonl"
+
 # ==============================================================================
 # 2. Configurações de Modelos (Ollama Local / GPU RTX)
 # ==============================================================================

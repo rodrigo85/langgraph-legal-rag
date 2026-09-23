@@ -4,16 +4,50 @@ Implementa os pontos de inspecao e decisao de fluxo do DAG para autocorrecao.
 """
 
 import sys
+import json
 from pathlib import Path
+from datetime import datetime, timezone
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.agent.state import AgentState
-from src.config import MAX_RETRIES
+from src.config import MAX_RETRIES, HALLUCINATIONS_LOG_PATH
 from src.chains.hallucination_grader import create_hallucination_grader, create_unified_quality_grader
 from src.chains.answer_grader import create_answer_grader
+
+
+def log_hallucination_incident(
+    question: str,
+    generation: str,
+    documents: list,
+    audit_summary: str,
+    retry_count: int,
+) -> None:
+    """
+    Dead-Letter Queue (DLQ) para Auditoria de Alucinacoes:
+    Persiste o incidente com o rascunho rejeitado, contexto documental e parecer
+    do auditor em JSONL, alimentando o Data Flywheel para DPO e fine-tuning.
+    """
+    try:
+        HALLUCINATIONS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        incident_record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "question": question,
+            "retry_cycle": retry_count,
+            "rejected_generation": generation,
+            "audit_summary": audit_summary,
+            "retrieved_pages": [d.metadata.get("page") for d in documents if hasattr(d, "metadata")],
+            "retrieved_sources": list(set([d.metadata.get("source_file") for d in documents if hasattr(d, "metadata")])),
+            "context_snippets": [d.page_content[:200] for d in documents if hasattr(d, "page_content")],
+        }
+        with open(HALLUCINATIONS_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(incident_record, ensure_ascii=False) + "\n")
+        print(f"    [DLQ] Incidente de alucinacao arquivado com sucesso em: {HALLUCINATIONS_LOG_PATH.name}")
+    except Exception as err:
+        print(f"    [DLQ Alerta] Falha ao arquivar incidente de alucinacao: {err}")
+
 
 
 def decide_to_generate(state: AgentState) -> str:
@@ -75,6 +109,13 @@ def grade_generation_v_documents_and_question(state: AgentState) -> str:
         is_useful = True
 
     if not is_grounded and retry_count < MAX_RETRIES:
+        log_hallucination_incident(
+            question=question,
+            generation=generation,
+            documents=documents,
+            audit_summary=audit_summary,
+            retry_count=retry_count,
+        )
         print("    [!] Reprovado no Gate de Grounding -> Retentando geracao ancorada.")
         return "not_grounded"
 
