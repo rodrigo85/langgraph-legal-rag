@@ -1,53 +1,55 @@
-# 🛡️ Relatório de Auditoria de Qualidade de Dados & Reconciliação entre Camadas
+# 🛡️ Data Quality Audit & Cross-Layer Reconciliation Report
 ### *U.S. v. Google LLC Antitrust Lakehouse Pipeline*
 
-Este documento formaliza os testes de **Data Contract Validation, Integridade Referencial e Linhagem de Dados** entre as camadas do pipeline de dados não-estruturados:
+> **Scope:** this audit covers the Memorandum Opinion (Doc 1033, 286 pages, 821 chunks) and was run before the complaint (Doc 1) and remedies opinion (Doc 1062) were ingested. The Gold index now holds 385 pages / 1,081 chunks across the three dockets; extending the audit to filter per docket is on the roadmap.
+
+This document formalizes the **Data Contract Validation, Referential Integrity and Data Lineage** tests across the layers of the unstructured-data pipeline:
 
 ---
 
-## 📊 1. Resumo Executivo da Auditoria
+## 📊 1. Audit Executive Summary
 
-| Teste de Qualidade de Dados | Camadas Inspecionadas | Esperado | Obtido | Status |
+| Data Quality Test | Layers Inspected | Expected | Actual | Status |
 | :--- | :---: | :---: | :---: | :---: |
-| **Paridade de Páginas (Completeness)** | Bronze $\leftrightarrow$ Silver | 286 páginas | **286 páginas** | ✅ **PASS (100%)** |
-| **Colisões de Hash (Deduplication)** | Silver | 0 colisões | **286 hashes únicos** | ✅ **PASS (Zero Duplicatas)** |
-| **Integridade de Caracteres (Null Bytes)** | Silver | 0 falhas | **0 falhas detectadas** | ✅ **PASS (Zero Corrupção)** |
-| **Linhagem Estrita de IDs de Chunks** | Silver $\leftrightarrow$ Gold | 100% prefixados | **821/821 prefixados** | ✅ **PASS (Rastreável)** |
-| **Cobertura de Páginas no Vector Lake** | Silver $\leftrightarrow$ Gold | 100% | **100.0% (286/286)** | ✅ **PASS (Cobertura Total)** |
-| **Tamanho Médio de Particionamento** | Gold | 600–900 chars | **811.7 chars** | ✅ **PASS (Calibrado)** |
-| **Reconciliação Ground Truth SFT** | Silver $\leftrightarrow$ Training | $\ge$ 95% | **100.0%** | ✅ **PASS (Auditado)** |
+| **Page Parity (Completeness)** | Bronze $\leftrightarrow$ Silver | 286 pages | **286 pages** | ✅ **PASS (100%)** |
+| **Hash Collisions (Deduplication)** | Silver | 0 collisions | **286 unique hashes** | ✅ **PASS (Zero Duplicates)** |
+| **Character Integrity (Null Bytes)** | Silver | 0 failures | **0 failures detected** | ✅ **PASS (Zero Corruption)** |
+| **Strict Chunk ID Lineage** | Silver $\leftrightarrow$ Gold | 100% prefixed | **821/821 prefixed** | ✅ **PASS (Traceable)** |
+| **Page Coverage in the Vector Lake** | Silver $\leftrightarrow$ Gold | 100% | **100.0% (286/286)** | ✅ **PASS (Full Coverage)** |
+| **Average Chunk Size** | Gold | 600–900 chars | **811.7 chars** | ✅ **PASS (Calibrated)** |
+| **SFT Ground Truth Reconciliation** | Silver $\leftrightarrow$ Training | $\ge$ 95% | **100.0%** | ✅ **PASS (Audited)** |
 
 ---
 
-## 🔍 2. Auditoria Detalhada por Camada
+## 🔍 2. Detailed Audit by Layer
 
-### 🥉 Camada Bronze $\rightarrow$ 🥈 Camada Silver
-- **Volume do PDF Bruto**: `2.51 MB`
-- **Volume Textual Extraído**: `573,724 caracteres`
-- **Média por Página**: `~2,006 caracteres/pág`
-- **Assinatura de Integridade**: O arquivo original possui cabeçalho válido `%PDF-1.6`, e o script de parsing extraiu exatamente todas as **286 páginas**, preservando 1-para-1 a paginação do tribunal federal.
-- **Detecção de Páginas Vazias**: Nenhuma página do processo foi perdida ou descartada indevidamente.
+### 🥉 Bronze Layer $\rightarrow$ 🥈 Silver Layer
+- **Raw PDF Volume**: `2.51 MB`
+- **Extracted Text Volume**: `573,724 characters`
+- **Average per Page**: `~2,006 characters/page`
+- **Integrity Signature**: The original file has a valid `%PDF-1.6` header, and the parsing script extracted exactly all **286 pages**, preserving the federal court's pagination 1-to-1.
+- **Blank Page Detection**: No page of the opinion was lost or improperly discarded.
 
-### 🥈 Camada Silver $\rightarrow$ 🥇 Camada Gold
-- **Total de Chunks Indexados**: `821`
-- **Política de IDs**: Cada chunk possui identificador único determinístico no formato `doc1033_p{page}_c{id}`.
-- **Estatísticas de Particionamento**:
-  - Menor chunk: `79 caracteres`
-  - Maior chunk: `1000 caracteres`
-  - Tamanho médio: `811.7 caracteres`
-- **Dimensão dos Embeddings**: 768 dimensões com modelo `nomic-embed-text` rodando localmente via Ollama.
-- **Teste de Recuperação Vetorial**: Operacional e funcional em tempo real.
+### 🥈 Silver Layer $\rightarrow$ 🥇 Gold Layer
+- **Total Indexed Chunks**: `821`
+- **ID Policy**: Every chunk has a deterministic unique identifier in the format `doc1033_p{page}_c{id}`.
+- **Chunking Statistics**:
+  - Smallest chunk: `79 characters`
+  - Largest chunk: `1000 characters`
+  - Average size: `811.7 characters`
+- **Embedding Dimension**: 768 dimensions with the `nomic-embed-text` model running locally via Ollama.
+- **Vector Retrieval Test**: Operational and functional in real time.
 
-### 🥈 Camada Silver $\rightarrow$ 💎 Camada de Treinamento (SFT / DPO)
-- **Dataset CoT Gerado**: `152 amostras` com raciocínio analítico explícito (`<pensamento_forense>`).
-- **Dataset DPO Gerado**: `152 pares de preferência` (*Chosen* vs. *Rejected*).
-- **Validação de Citação de Linhagem**: `100.0%` das citações apontam para páginas existentes e validadas na camada Silver.
+### 🥈 Silver Layer $\rightarrow$ 💎 Training Layer (prepared SFT / DPO datasets)
+- **Generated CoT Dataset**: `152 samples` with explicit analytical reasoning (`<pensamento_forense>`).
+- **Generated DPO Dataset**: `152 preference pairs` (*Chosen* vs. *Rejected*).
+- **Lineage Citation Validation**: `100.0%` of the citations point to pages that exist and are validated in the Silver layer.
 
 ---
 
-## 🎯 Conclusão de Engenharia de Dados
+## 🎯 Data Engineering Conclusion
 
-O pipeline atende a **100% dos requisitos de governança de dados**, demonstrando que os dados não-estruturados alimentam os modelos de IA com:
-1. **Zero perda de informação** entre a decisão judicial oficial e os vetores de busca.
-2. **Linhagem reversa completa**, permitindo rastrear qualquer afirmação do modelo até o byte e a página exata da prova nos autos.
-3. **Idempotência absoluta**, garantindo pipelines resilientes e prontos para produção.
+The pipeline meets **100% of the data governance requirements**, demonstrating that the unstructured data feeds the AI models with:
+1. **Zero information loss** between the official court opinion and the search vectors.
+2. **Complete reverse lineage**, allowing any model statement to be traced back to the exact byte and page of the evidence in the record.
+3. **Absolute idempotency**, ensuring resilient, production-ready pipelines.

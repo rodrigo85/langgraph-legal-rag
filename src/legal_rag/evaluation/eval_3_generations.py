@@ -216,7 +216,7 @@ def generate_3gen_svg(g0: float, g1: float, g2: float):
   <text x="{80 + g2 * 4.5 + 15}" y="306" fill="#2ea043" font-size="14" font-weight="bold">{g2:.1f} / 100 ({(g2 - g0):+.1f})</text>
 </svg>"""
 
-    with open(CHART_3GEN_SVG, "w", encoding="utf-8") as f:
+    with open(CHART_3GEN_SVG, "w", encoding="utf-8", newline="\n") as f:
         f.write(svg)
     print(f"[OK] 3-generation SVG chart written to: {CHART_3GEN_SVG.name}")
 
@@ -225,7 +225,7 @@ def update_reports_markdown(all_results, g0, g1, g2, c0, c1, c2):
     rows_md = []
     for r in all_results:
         gain = r["gen2"]["score"] - r["gen0"]["score"]
-        cited = "Sim" if r["gen2"]["has_citation"] else "Não"
+        cited = "Yes" if r["gen2"]["has_citation"] else "No"
         rows_md.append(
             f"| **{r['id']}** | {r['gen0']['score']}/100 | {r['gen1']['score']}/100 | **{r['gen2']['score']}/100** | {cited} | **{gain:+d} pts** |"
         )
@@ -233,77 +233,77 @@ def update_reports_markdown(all_results, g0, g1, g2, c0, c1, c2):
     deep_dives = []
     for r in all_results:
         deep_dives.append(f"""
-### 🔍 Cenário {r["id"]}
-**Pergunta:** *{r["question"]}*
+### 🔍 Scenario {r["id"]}
+**Question:** *{r["question"]}*
 
 <details>
-<summary><b>Respostas das 3 configurações (clique para expandir)</b></summary>
+<summary><b>Answers from the 3 configurations (click to expand)</b></summary>
 
-#### 🔴 Geração 0: Modelo Base (Nota {r["gen0"]["score"]}/100)
+#### 🔴 Generation 0: Base Model (Score {r["gen0"]["score"]}/100)
 > {r["gen0"]["text"]}
 
-#### 🟣 Geração 1: Modelfile v1 (Nota {r["gen1"]["score"]}/100)
+#### 🟣 Generation 1: Modelfile v1 (Score {r["gen1"]["score"]}/100)
 > {r["gen1"]["text"]}
 
-#### 🟢 Geração 2: Modelfile v2 (Nota {r["gen2"]["score"]}/100)
+#### 🟢 Generation 2: Modelfile v2 (Score {r["gen2"]["score"]}/100)
 > {r["gen2"]["text"]}
 
-**Auditoria:**
-- Citação no formato `[Pág. N]` na Gen 2: **{"Sim" if r["gen2"]["has_citation"] else "Não"}** (formato, não validade da página)
-- Evolução total: **{r["gen2"]["score"] - r["gen0"]["score"]:+d} pontos**
+**Audit:**
+- Citation in the `[Pág. N]` format in Gen 2: **{"Yes" if r["gen2"]["has_citation"] else "No"}** (format only, not page validity)
+- Total gain: **{r["gen2"]["score"] - r["gen0"]["score"]:+d} points**
 </details>
 """)
 
-    report_text = f"""# 📈 Relatório de Evolução: 3 Configurações do Mesmo Modelo Base
-### *U.S. v. Google LLC — Especialização de Domínio via Modelfile (Ollama, RTX 2060)*
+    report_text = f"""# 📈 Evolution Report: 3 Configurations of the Same Base Model
+### *U.S. v. Google LLC — Domain Specialization via Modelfile (Ollama, RTX 2060)*
 
-Este relatório compara **três configurações do mesmo modelo base** (`qwen2.5:7b-instruct-q3_K_M`). **Não houve ajuste de pesos (fine-tuning)**: a especialização é feita por *system prompt* e parâmetros de inferência definidos em Modelfiles do Ollama.
+This report compares **three configurations of the same base model** (`qwen2.5:7b-instruct-q3_K_M`). **No weight fine-tuning was performed**: the specialization comes from the *system prompt* and inference parameters defined in Ollama Modelfiles.
 
-1. **Geração 0 (Baseline)**: modelo base, sem system prompt.
-2. **Geração 1 (Modelfile v1)**: system prompt de domínio exigindo citação `[Pág. N]` (`antitrust-specialist`).
-3. **Geração 2 (Modelfile v2)**: prompt estruturado em Evidência / Análise / Conclusão, temperatura 0 (`antitrust-specialist-v2`).
+1. **Generation 0 (Baseline)**: base model, no system prompt.
+2. **Generation 1 (Modelfile v1)**: domain system prompt requiring a `[Pág. N]` citation (`antitrust-specialist`).
+3. **Generation 2 (Modelfile v2)**: structured Evidence / Analysis / Conclusion prompt, temperature 0 (`antitrust-specialist-v2`).
 
 ---
 
-## 📊 1. Quadro Comparativo
+## 📊 1. Comparison Table
 
-| Métrica | Geração 0 (Base) | Geração 1 (Modelfile v1) | Geração 2 (Modelfile v2) | Ganho Total |
+| Metric | Generation 0 (Base) | Generation 1 (Modelfile v1) | Generation 2 (Modelfile v2) | Total Gain |
 | :--- | :---: | :---: | :---: | :---: |
-| **Score heurístico médio (0-100)** | **{g0:.1f} pts** | **{g1:.1f} pts** | **{g2:.1f} pts** | **{(g2 - g0):+.1f} pontos ({((g2 - g0) / g0) * 100:+.1f}%)** |
-| **Respostas com citação no formato `[Pág. N]`** | **{c0:.0f}%** | **{c1:.0f}%** | **{c2:.0f}%** | **{c2 - c0:+.0f} p.p.** |
+| **Average heuristic score (0-100)** | **{g0:.1f} pts** | **{g1:.1f} pts** | **{g2:.1f} pts** | **{(g2 - g0):+.1f} points ({((g2 - g0) / g0) * 100:+.1f}%)** |
+| **Answers with a citation in the `[Pág. N]` format** | **{c0:.0f}%** | **{c1:.0f}%** | **{c2:.0f}%** | **{c2 - c0:+.0f} p.p.** |
 
-> **Como o score é calculado:** 40% presença de citação no formato `[Pág. N]`, 40% cobertura de termos esperados, 20% estrutura em seções. Amostra de 4 cenários, temperatura 0.
-
----
-
-## 📉 2. Gráfico
-
-![Score por configuração](./evolution_3_generations.svg)
+> **How the score is calculated:** 40% presence of a citation in the `[Pág. N]` format, 40% coverage of expected terms, 20% sectioned structure. Sample of 4 scenarios, temperature 0.
 
 ---
 
-## 📋 3. Scorecard por Cenário
+## 📉 2. Chart
 
-| Cenário de Teste | Gen 0 (Base) | Gen 1 (Modelfile v1) | Gen 2 (Modelfile v2) | Citação Gen 2 (formato) | Ganho |
+![Score by configuration](./evolution_3_generations.svg)
+
+---
+
+## 📋 3. Scorecard by Scenario
+
+| Test Scenario | Gen 0 (Base) | Gen 1 (Modelfile v1) | Gen 2 (Modelfile v2) | Gen 2 Citation (format) | Gain |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 {chr(10).join(rows_md)}
 
 ---
 
-## 🔬 4. Análise Qualitativa (Deep Dive)
+## 🔬 4. Qualitative Analysis (Deep Dive)
 
 {chr(10).join(deep_dives)}
 
 ---
 
-## ⚠️ Limitações Conhecidas
+## ⚠️ Known Limitations
 
-1. **Citação checada no formato, não na validade**: o contexto fornecido nos testes não contém números de página, portanto os números citados pelos modelos são inventados. O ganho mede **aderência ao formato exigido pelo prompt**, não precisão de linhagem. A linhagem real de páginas é garantida no agente RAG (metadados de página dos chunks), não neste benchmark.
-2. **Amostra pequena** (4 cenários) e score heurístico baseado em palavras-chave.
-3. **Sem ajuste de pesos**: os datasets SFT/CoT/DPO em `data/training/` estão preparados para um fine-tuning LoRA futuro, ainda não executado.
+1. **Citation checked for format, not validity**: the context provided in the tests contains no page numbers, so the page numbers cited by the models are made up. The gain measures **adherence to the format required by the prompt**, not lineage accuracy. Real page lineage is guaranteed in the RAG agent (page metadata on the chunks), not in this benchmark.
+2. **Small sample** (4 scenarios) and a keyword-based heuristic score.
+3. **No weight fine-tuning**: the SFT/CoT/DPO datasets in `data/training/` are prepared for a future LoRA fine-tuning run that has not been executed yet.
 """
 
-    with open(REPORT_MD_FILE, "w", encoding="utf-8") as f:
+    with open(REPORT_MD_FILE, "w", encoding="utf-8", newline="\n") as f:
         f.write(report_text)
     print(f"[OK] 3-generation report updated at: {REPORT_MD_FILE.name}")
 

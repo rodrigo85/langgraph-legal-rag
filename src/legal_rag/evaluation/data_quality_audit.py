@@ -270,62 +270,62 @@ def generate_audit_markdown(b2s, s2g, train_audit):
     """Writes the audit report to reports/data_quality_audit.md."""
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    md_content = f"""# 🛡️ Relatório de Auditoria de Qualidade de Dados & Reconciliação entre Camadas
+    md_content = f"""# 🛡️ Data Quality Audit & Cross-Layer Reconciliation Report
 ### *U.S. v. Google LLC Antitrust Lakehouse Pipeline*
 
-Este documento formaliza os testes de **Data Contract Validation, Integridade Referencial e Linhagem de Dados** entre as camadas do pipeline de dados não-estruturados:
+This document formalizes the **Data Contract Validation, Referential Integrity and Data Lineage** tests across the layers of the unstructured-data pipeline:
 
 ---
 
-## 📊 1. Resumo Executivo da Auditoria
+## 📊 1. Audit Executive Summary
 
-| Teste de Qualidade de Dados | Camadas Inspecionadas | Esperado | Obtido | Status |
+| Data Quality Test | Layers Inspected | Expected | Actual | Status |
 | :--- | :---: | :---: | :---: | :---: |
-| **Paridade de Páginas (Completeness)** | Bronze $\\leftrightarrow$ Silver | 286 páginas | **286 páginas** | ✅ **PASS (100%)** |
-| **Colisões de Hash (Deduplication)** | Silver | 0 colisões | **286 hashes únicos** | ✅ **PASS (Zero Duplicatas)** |
-| **Integridade de Caracteres (Null Bytes)** | Silver | 0 falhas | **0 falhas detectadas** | ✅ **PASS (Zero Corrupção)** |
-| **Linhagem Estrita de IDs de Chunks** | Silver $\\leftrightarrow$ Gold | 100% prefixados | **{s2g["chunks_with_valid_id"]}/{s2g["gold_total_chunks"]} prefixados** | ✅ **PASS (Rastreável)** |
-| **Cobertura de Páginas no Vector Lake** | Silver $\\leftrightarrow$ Gold | 100% | **{s2g["page_coverage_pct"]}% ({s2g["pages_covered_in_gold"]}/286)** | ✅ **PASS (Cobertura Total)** |
-| **Tamanho Médio de Particionamento** | Gold | 600–900 chars | **{s2g["avg_chunk_size"]} chars** | ✅ **PASS (Calibrado)** |
-| **Reconciliação Ground Truth SFT** | Silver $\\leftrightarrow$ Training | $\\ge$ 95% | **{train_audit["citation_validity_pct"]}%** | ✅ **PASS (Auditado)** |
+| **Page Parity (Completeness)** | Bronze $\\leftrightarrow$ Silver | 286 pages | **286 pages** | ✅ **PASS (100%)** |
+| **Hash Collisions (Deduplication)** | Silver | 0 collisions | **286 unique hashes** | ✅ **PASS (Zero Duplicates)** |
+| **Character Integrity (Null Bytes)** | Silver | 0 failures | **0 failures detected** | ✅ **PASS (Zero Corruption)** |
+| **Strict Chunk ID Lineage** | Silver $\\leftrightarrow$ Gold | 100% prefixed | **{s2g["chunks_with_valid_id"]}/{s2g["gold_total_chunks"]} prefixed** | ✅ **PASS (Traceable)** |
+| **Page Coverage in the Vector Lake** | Silver $\\leftrightarrow$ Gold | 100% | **{s2g["page_coverage_pct"]}% ({s2g["pages_covered_in_gold"]}/286)** | ✅ **PASS (Full Coverage)** |
+| **Average Chunk Size** | Gold | 600–900 chars | **{s2g["avg_chunk_size"]} chars** | ✅ **PASS (Calibrated)** |
+| **SFT Ground Truth Reconciliation** | Silver $\\leftrightarrow$ Training | $\\ge$ 95% | **{train_audit["citation_validity_pct"]}%** | ✅ **PASS (Audited)** |
 
 ---
 
-## 🔍 2. Auditoria Detalhada por Camada
+## 🔍 2. Detailed Audit by Layer
 
-### 🥉 Camada Bronze $\\rightarrow$ 🥈 Camada Silver
-- **Volume do PDF Bruto**: `{b2s["bronze_size_mb"]} MB`
-- **Volume Textual Extraído**: `{b2s["silver_total_chars"]:,} caracteres`
-- **Média por Página**: `~{b2s["silver_total_chars"] // b2s["silver_pages"]:,} caracteres/pág`
-- **Assinatura de Integridade**: O arquivo original possui cabeçalho válido `%PDF-1.6`, e o script de parsing extraiu exatamente todas as **286 páginas**, preservando 1-para-1 a paginação do tribunal federal.
-- **Detecção de Páginas Vazias**: Nenhuma página do processo foi perdida ou descartada indevidamente.
+### 🥉 Bronze Layer $\\rightarrow$ 🥈 Silver Layer
+- **Raw PDF Volume**: `{b2s["bronze_size_mb"]} MB`
+- **Extracted Text Volume**: `{b2s["silver_total_chars"]:,} characters`
+- **Average per Page**: `~{b2s["silver_total_chars"] // b2s["silver_pages"]:,} characters/page`
+- **Integrity Signature**: The original file has a valid `%PDF-1.6` header, and the parsing script extracted exactly all **286 pages**, preserving the federal court's pagination 1-to-1.
+- **Blank Page Detection**: No page of the opinion was lost or improperly discarded.
 
-### 🥈 Camada Silver $\\rightarrow$ 🥇 Camada Gold
-- **Total de Chunks Indexados**: `{s2g["gold_total_chunks"]}`
-- **Política de IDs**: Cada chunk possui identificador único determinístico no formato `doc1033_p{{page}}_c{{id}}`.
-- **Estatísticas de Particionamento**:
-  - Menor chunk: `{s2g["min_chunk_size"]} caracteres`
-  - Maior chunk: `{s2g["max_chunk_size"]} caracteres`
-  - Tamanho médio: `{s2g["avg_chunk_size"]} caracteres`
-- **Dimensão dos Embeddings**: 768 dimensões com modelo `nomic-embed-text` rodando localmente via Ollama.
-- **Teste de Recuperação Vetorial**: Operacional e funcional em tempo real.
+### 🥈 Silver Layer $\\rightarrow$ 🥇 Gold Layer
+- **Total Indexed Chunks**: `{s2g["gold_total_chunks"]}`
+- **ID Policy**: Every chunk has a deterministic unique identifier in the format `doc1033_p{{page}}_c{{id}}`.
+- **Chunking Statistics**:
+  - Smallest chunk: `{s2g["min_chunk_size"]} characters`
+  - Largest chunk: `{s2g["max_chunk_size"]} characters`
+  - Average size: `{s2g["avg_chunk_size"]} characters`
+- **Embedding Dimension**: 768 dimensions with the `nomic-embed-text` model running locally via Ollama.
+- **Vector Retrieval Test**: Operational and functional in real time.
 
-### 🥈 Camada Silver $\\rightarrow$ 💎 Camada de Treinamento (SFT / DPO)
-- **Dataset CoT Gerado**: `{train_audit["total_cot_samples"]} amostras` com raciocínio analítico explícito (`<pensamento_forense>`).
-- **Dataset DPO Gerado**: `{train_audit["total_dpo_samples"]} pares de preferência` (*Chosen* vs. *Rejected*).
-- **Validação de Citação de Linhagem**: `{train_audit["citation_validity_pct"]}%` das citações apontam para páginas existentes e validadas na camada Silver.
+### 🥈 Silver Layer $\\rightarrow$ 💎 Training Layer (prepared SFT / DPO datasets)
+- **Generated CoT Dataset**: `{train_audit["total_cot_samples"]} samples` with explicit analytical reasoning (`<pensamento_forense>`).
+- **Generated DPO Dataset**: `{train_audit["total_dpo_samples"]} preference pairs` (*Chosen* vs. *Rejected*).
+- **Lineage Citation Validation**: `{train_audit["citation_validity_pct"]}%` of the citations point to pages that exist and are validated in the Silver layer.
 
 ---
 
-## 🎯 Conclusão de Engenharia de Dados
+## 🎯 Data Engineering Conclusion
 
-O pipeline atende a **100% dos requisitos de governança de dados**, demonstrando que os dados não-estruturados alimentam os modelos de IA com:
-1. **Zero perda de informação** entre a decisão judicial oficial e os vetores de busca.
-2. **Linhagem reversa completa**, permitindo rastrear qualquer afirmação do modelo até o byte e a página exata da prova nos autos.
-3. **Idempotência absoluta**, garantindo pipelines resilientes e prontos para produção.
+The pipeline meets **100% of the data governance requirements**, demonstrating that the unstructured data feeds the AI models with:
+1. **Zero information loss** between the official court opinion and the search vectors.
+2. **Complete reverse lineage**, allowing any model statement to be traced back to the exact byte and page of the evidence in the record.
+3. **Absolute idempotency**, ensuring resilient, production-ready pipelines.
 """
 
-    with open(AUDIT_REPORT_MD, "w", encoding="utf-8") as f:
+    with open(AUDIT_REPORT_MD, "w", encoding="utf-8", newline="\n") as f:
         f.write(md_content)
 
     console.print(f"\n[bold green][OK] Formal audit report generated at: {AUDIT_REPORT_MD.name}![/bold green]")

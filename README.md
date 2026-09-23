@@ -190,7 +190,7 @@ All settings live in [`src/legal_rag/config.py`](src/legal_rag/config.py) (pydan
 └── reports/              # evaluation reports and case study
 ```
 
-The [case study](reports/case_study_autocura_e_dlq.md) walks through real incidents: a hallucinated executive caught by the auditor, the infinite-loop bug and its bounded fix, and the false-premise abstention flow.
+The [case study](reports/case_study_self_healing_and_dlq.md) walks through real incidents: a hallucinated executive caught by the auditor, the infinite-loop bug and its bounded fix, and the false-premise abstention flow.
 
 ---
 
