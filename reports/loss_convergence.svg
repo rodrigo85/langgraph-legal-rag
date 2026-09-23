@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 360" width="100%" height="100%">
+  <rect width="750" height="360" fill="#0d1117" rx="10"/>
+  
+  <!-- Titulo -->
+  <text x="375.0" y="32" fill="#58a6ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="16" font-weight="bold" text-anchor="middle">
+    Curva de Convergencia de Treinamento (Supervised Fine-Tuning LoRA / SFT)
+  </text>
+  <text x="375.0" y="50" fill="#8b949e" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" text-anchor="middle">
+    Modelo: antitrust-specialist (RTX 2060 CUDA) | Perplexidade: 17.2 &gt; 1.77 (-89.7%)
+  </text>
+
+  <!-- Eixos -->
+  <line x1="55" y1="55" x2="55" y2="305" stroke="#30363d" stroke-width="1.5"/>
+  <line x1="55" y1="305" x2="695" y2="305" stroke="#30363d" stroke-width="1.5"/>
+
+  <!-- Linhas de Grade e Rotulos Y -->
+  <line x1="55" y1="55" x2="695" y2="55" stroke="#21262d" stroke-dasharray="4"/>
+  <text x="45" y="59" fill="#8b949e" font-size="11" text-anchor="end">2.75</text>
+
+  <line x1="55" y1="180.0" x2="695" y2="180.0" stroke="#21262d" stroke-dasharray="4"/>
+  <text x="45" y="184.0" fill="#8b949e" font-size="11" text-anchor="end">1.66</text>
+
+  <line x1="55" y1="305" x2="695" y2="305" stroke="#21262d" stroke-dasharray="4"/>
+  <text x="45" y="309" fill="#8b949e" font-size="11" text-anchor="end">0.57</text>
+
+  <!-- Rotulos X -->
+  <text x="55" y="325" fill="#8b949e" font-size="11" text-anchor="middle">Step 1</text>
+  <text x="375.0" y="325" fill="#8b949e" font-size="11" text-anchor="middle">Step 25</text>
+  <text x="695" y="325" fill="#8b949e" font-size="11" text-anchor="middle">Step 50</text>
+
+  <!-- Area gradiente sob a curva -->
+  <defs>
+    <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#238636" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#238636" stop-opacity="0.0"/>
+    </linearGradient>
+  </defs>
+  <polygon points="55,305 55.0,55.0 68.1,71.0 81.1,87.2 94.2,96.6 107.2,103.7 120.3,116.2 133.4,130.8 146.4,139.3 159.5,143.9 172.6,153.2 185.6,166.2 198.7,174.2 211.7,177.1 224.8,183.5 237.9,194.8 250.9,202.7 264.0,204.6 277.0,208.4 290.1,218.0 303.2,225.9 316.2,227.3 329.3,229.0 342.3,236.8 355.4,244.7 368.5,246.1 381.5,246.0 394.6,252.0 407.7,259.8 420.7,261.6 433.8,260.3 446.8,264.3 459.9,271.9 473.0,274.4 486.0,272.3 499.1,274.4 512.1,281.4 525.2,284.8 538.3,282.5 551.3,282.8 564.4,289.0 577.4,293.1 590.5,291.0 603.6,289.8 616.6,294.9 629.7,299.8 642.8,298.2 655.8,295.8 668.9,299.6 681.9,305.0 695.0,304.3 695,305" fill="url(#curveGradient)"/>
+
+  <!-- Linha da Curva de Perda -->
+  <polyline fill="none" stroke="#2ea043" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="55.0,55.0 68.1,71.0 81.1,87.2 94.2,96.6 107.2,103.7 120.3,116.2 133.4,130.8 146.4,139.3 159.5,143.9 172.6,153.2 185.6,166.2 198.7,174.2 211.7,177.1 224.8,183.5 237.9,194.8 250.9,202.7 264.0,204.6 277.0,208.4 290.1,218.0 303.2,225.9 316.2,227.3 329.3,229.0 342.3,236.8 355.4,244.7 368.5,246.1 381.5,246.0 394.6,252.0 407.7,259.8 420.7,261.6 433.8,260.3 446.8,264.3 459.9,271.9 473.0,274.4 486.0,272.3 499.1,274.4 512.1,281.4 525.2,284.8 538.3,282.5 551.3,282.8 564.4,289.0 577.4,293.1 590.5,291.0 603.6,289.8 616.6,294.9 629.7,299.8 642.8,298.2 655.8,295.8 668.9,299.6 681.9,305.0 695.0,304.3"/>
+
+  <!-- Badge Indicador Final -->
+  <circle cx="695" cy="304.2689724493992" r="5" fill="#3fb950"/>
+  <text x="685" y="294.2689724493992" fill="#3fb950" font-size="12" font-weight="bold" text-anchor="end">
+    Final Loss: 0.5725
+  </text>
+</svg>

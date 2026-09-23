@@ -1,0 +1,52 @@
+[
+  {
+    "id": "q1_isa_share",
+    "category": "factual_direct",
+    "question": "Qual era o percentual de compartilhamento de receita que o Google pagava para a Apple no contrato ISA em 2016?",
+    "expected_keywords": [
+      "36%",
+      "ISA",
+      "Apple",
+      "Google",
+      "2016"
+    ],
+    "expected_pages": [
+      "114",
+      "115"
+    ]
+  },
+  {
+    "id": "q2_colloquial_nadella",
+    "category": "ambiguous_rewrite_needed",
+    "question": "O que a dona do windows falou sobre a chance de competir com a busca do Google?",
+    "expected_keywords": [
+      "Satya Nadella",
+      "Microsoft",
+      "Bing",
+      "default",
+      "scale"
+    ],
+    "expected_pages": [
+      "245",
+      "109",
+      "110"
+    ]
+  },
+  {
+    "id": "q3_rsa_distribution",
+    "category": "carrier_contracts",
+    "question": "Como funcionavam os acordos de Revenue Share (RSA) do Google com operadoras e fabricantes de smartphones Android?",
+    "expected_keywords": [
+      "RSA",
+      "Android",
+      "Samsung",
+      "carrier",
+      "default"
+    ],
+    "expected_pages": [
+      "113",
+      "114",
+      "115"
+    ]
+  }
+]

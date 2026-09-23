@@ -1,0 +1,96 @@
+"""
+Interface Interativa CLI para o Agente RAG Autocorretivo (DOJ vs. Google).
+"""
+
+import sys
+from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.markdown import Markdown
+from rich.prompt import Prompt
+
+from src.agent.graph import build_graph
+
+console = Console()
+
+
+def run_cli():
+    console.print(
+        Panel.fit(
+            "[bold cyan]Agente RAG Autocorretivo (Self-RAG) - U.S. v. Google[/bold cyan]\n"
+            "[white]Sentenca Judicial de Merito do Juiz Amit Mehta (Doc 1033 - 286 paginas)\n"
+            "Arquitetura: LangGraph + ChromaDB + Ollama (Local)[/white]",
+            border_style="cyan",
+        )
+    )
+
+    console.print("[dim]Compilando o grafo de estados...[/dim]")
+    app = build_graph()
+    console.print("[bold green][OK] Grafo carregado e pronto para consultas![/bold green]\n")
+
+    examples = [
+        "Qual era a porcentagem da receita que o Google repassava para a Apple no contrato ISA em 2016 e anos seguintes?",
+        "O que Satya Nadella (Microsoft) testemunhou sob juramento sobre o Bing conseguir competir caso a Apple nao o adotasse?",
+        "Qual foi o valor total pago pelo Google em acordos de receita (revenue share) para ser o buscador padrao em 2021?",
+    ]
+
+    console.print("[bold yellow]Exemplos de perguntas investigativas para testar:[/bold yellow]")
+    for i, ex in enumerate(examples, 1):
+        console.print(f"  [cyan]{i}.[/cyan] {ex}")
+    console.print()
+
+    while True:
+        try:
+            question = Prompt.ask("[bold green]Pergunta Investigativa (ou 'sair')[/bold green]")
+            if not question or question.strip().lower() in ["sair", "exit", "quit", "q"]:
+                console.print("[bold yellow]Encerrando sessao.[/bold yellow]")
+                break
+
+            initial_state = {
+                "question": question,
+                "current_query": question,
+                "documents": [],
+                "generation": "",
+                "retry_count": 0,
+                "max_retries": 3,
+                "web_search_needed": False,
+                "hallucination_verdict": None,
+                "answer_verdict": None,
+                "citations": [],
+            }
+
+            console.print("\n[bold cyan]=== INICIANDO EXECUCAO DO GRAFO ===[/bold cyan]")
+            
+            final_state = None
+            for output in app.stream(initial_state):
+                for node_name, state_update in output.items():
+                    console.print(f"[bold magenta]>>> No Concluido: {node_name}[/bold magenta]")
+
+            # Obter resultado final
+            final_res = app.invoke(initial_state)
+            
+            console.print("\n" + "=" * 60)
+            console.print(Panel(Markdown(final_res.get("generation", "Sem resposta")), title="[bold green]Resposta Auditada e Fundamentada[/bold green]", border_style="green"))
+            
+            citations = final_res.get("citations", [])
+            if citations:
+                console.print(f"[bold yellow]Paginas citadas da Sentenca:[/bold yellow] {', '.join(citations)}")
+            console.print("=" * 60 + "\n")
+
+        except KeyboardInterrupt:
+            console.print("\n[bold yellow]Interrompido pelo usuario.[/bold yellow]")
+            break
+        except Exception as e:
+            console.print(f"[bold red]Erro durante a execucao: {e}[/bold red]")
+
+
+if __name__ == "__main__":
+    run_cli()

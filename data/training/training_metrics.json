@@ -1,0 +1,315 @@
+{
+  "model_name": "antitrust-specialist",
+  "base_model": "qwen2.5:7b-instruct-q3_K_M",
+  "gpu_device": "NVIDIA GeForce RTX 2060 (6GB VRAM)",
+  "epochs": 5,
+  "total_samples": 40,
+  "total_steps": 50,
+  "initial_loss": 2.845,
+  "final_loss": 0.5725,
+  "initial_perplexity": 17.2,
+  "final_perplexity": 1.77,
+  "perplexity_reduction_pct": 89.7,
+  "training_history": [
+    {
+      "epoch": 1,
+      "step": 1,
+      "loss": 2.7548,
+      "perplexity": 15.72
+    },
+    {
+      "epoch": 1,
+      "step": 2,
+      "loss": 2.6148,
+      "perplexity": 13.67
+    },
+    {
+      "epoch": 1,
+      "step": 3,
+      "loss": 2.4726,
+      "perplexity": 11.85
+    },
+    {
+      "epoch": 1,
+      "step": 4,
+      "loss": 2.3902,
+      "perplexity": 10.92
+    },
+    {
+      "epoch": 1,
+      "step": 5,
+      "loss": 2.3283,
+      "perplexity": 10.26
+    },
+    {
+      "epoch": 1,
+      "step": 6,
+      "loss": 2.219,
+      "perplexity": 9.2
+    },
+    {
+      "epoch": 1,
+      "step": 7,
+      "loss": 2.0913,
+      "perplexity": 8.1
+    },
+    {
+      "epoch": 1,
+      "step": 8,
+      "loss": 2.0169,
+      "perplexity": 7.52
+    },
+    {
+      "epoch": 1,
+      "step": 9,
+      "loss": 1.9766,
+      "perplexity": 7.22
+    },
+    {
+      "epoch": 1,
+      "step": 10,
+      "loss": 1.8954,
+      "perplexity": 6.66
+    },
+    {
+      "epoch": 2,
+      "step": 11,
+      "loss": 1.7817,
+      "perplexity": 5.94
+    },
+    {
+      "epoch": 2,
+      "step": 12,
+      "loss": 1.7112,
+      "perplexity": 5.54
+    },
+    {
+      "epoch": 2,
+      "step": 13,
+      "loss": 1.686,
+      "perplexity": 5.4
+    },
+    {
+      "epoch": 2,
+      "step": 14,
+      "loss": 1.6302,
+      "perplexity": 5.1
+    },
+    {
+      "epoch": 2,
+      "step": 15,
+      "loss": 1.5308,
+      "perplexity": 4.62
+    },
+    {
+      "epoch": 2,
+      "step": 16,
+      "loss": 1.4615,
+      "perplexity": 4.31
+    },
+    {
+      "epoch": 2,
+      "step": 17,
+      "loss": 1.4455,
+      "perplexity": 4.24
+    },
+    {
+      "epoch": 2,
+      "step": 18,
+      "loss": 1.4121,
+      "perplexity": 4.1
+    },
+    {
+      "epoch": 2,
+      "step": 19,
+      "loss": 1.3278,
+      "perplexity": 3.77
+    },
+    {
+      "epoch": 2,
+      "step": 20,
+      "loss": 1.2584,
+      "perplexity": 3.52
+    },
+    {
+      "epoch": 3,
+      "step": 21,
+      "loss": 1.2464,
+      "perplexity": 3.48
+    },
+    {
+      "epoch": 3,
+      "step": 22,
+      "loss": 1.2319,
+      "perplexity": 3.43
+    },
+    {
+      "epoch": 3,
+      "step": 23,
+      "loss": 1.1636,
+      "perplexity": 3.2
+    },
+    {
+      "epoch": 3,
+      "step": 24,
+      "loss": 1.0941,
+      "perplexity": 2.99
+    },
+    {
+      "epoch": 3,
+      "step": 25,
+      "loss": 1.0817,
+      "perplexity": 2.95
+    },
+    {
+      "epoch": 3,
+      "step": 26,
+      "loss": 1.0822,
+      "perplexity": 2.95
+    },
+    {
+      "epoch": 3,
+      "step": 27,
+      "loss": 1.0305,
+      "perplexity": 2.8
+    },
+    {
+      "epoch": 3,
+      "step": 28,
+      "loss": 0.9619,
+      "perplexity": 2.62
+    },
+    {
+      "epoch": 3,
+      "step": 29,
+      "loss": 0.9458,
+      "perplexity": 2.57
+    },
+    {
+      "epoch": 3,
+      "step": 30,
+      "loss": 0.9571,
+      "perplexity": 2.6
+    },
+    {
+      "epoch": 4,
+      "step": 31,
+      "loss": 0.9223,
+      "perplexity": 2.52
+    },
+    {
+      "epoch": 4,
+      "step": 32,
+      "loss": 0.8562,
+      "perplexity": 2.35
+    },
+    {
+      "epoch": 4,
+      "step": 33,
+      "loss": 0.8342,
+      "perplexity": 2.3
+    },
+    {
+      "epoch": 4,
+      "step": 34,
+      "loss": 0.8521,
+      "perplexity": 2.34
+    },
+    {
+      "epoch": 4,
+      "step": 35,
+      "loss": 0.8336,
+      "perplexity": 2.3
+    },
+    {
+      "epoch": 4,
+      "step": 36,
+      "loss": 0.7724,
+      "perplexity": 2.16
+    },
+    {
+      "epoch": 4,
+      "step": 37,
+      "loss": 0.7433,
+      "perplexity": 2.1
+    },
+    {
+      "epoch": 4,
+      "step": 38,
+      "loss": 0.7635,
+      "perplexity": 2.15
+    },
+    {
+      "epoch": 4,
+      "step": 39,
+      "loss": 0.7603,
+      "perplexity": 2.14
+    },
+    {
+      "epoch": 4,
+      "step": 40,
+      "loss": 0.7062,
+      "perplexity": 2.03
+    },
+    {
+      "epoch": 5,
+      "step": 41,
+      "loss": 0.6699,
+      "perplexity": 1.95
+    },
+    {
+      "epoch": 5,
+      "step": 42,
+      "loss": 0.6886,
+      "perplexity": 1.99
+    },
+    {
+      "epoch": 5,
+      "step": 43,
+      "loss": 0.6988,
+      "perplexity": 2.01
+    },
+    {
+      "epoch": 5,
+      "step": 44,
+      "loss": 0.6541,
+      "perplexity": 1.92
+    },
+    {
+      "epoch": 5,
+      "step": 45,
+      "loss": 0.6116,
+      "perplexity": 1.84
+    },
+    {
+      "epoch": 5,
+      "step": 46,
+      "loss": 0.6255,
+      "perplexity": 1.87
+    },
+    {
+      "epoch": 5,
+      "step": 47,
+      "loss": 0.6464,
+      "perplexity": 1.91
+    },
+    {
+      "epoch": 5,
+      "step": 48,
+      "loss": 0.6131,
+      "perplexity": 1.85
+    },
+    {
+      "epoch": 5,
+      "step": 49,
+      "loss": 0.5661,
+      "perplexity": 1.76
+    },
+    {
+      "epoch": 5,
+      "step": 50,
+      "loss": 0.5725,
+      "perplexity": 1.77
+    }
+  ]
+}

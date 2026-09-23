@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 360" width="100%" height="100%">
+  <rect width="750" height="360" fill="#0d1117" rx="10"/>
+  
+  <text x="375.0" y="36" fill="#58a6ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="16" font-weight="bold" text-anchor="middle">
+    Progressao de Inteligencia por Geracoes de IA (Benchmark de Dominio)
+  </text>
+  <text x="375.0" y="56" fill="#8b949e" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" text-anchor="middle">
+    NVIDIA GeForce RTX 2060 | Avaliacao Cega de Precisao Forense, Jargao e Linhagem
+  </text>
+
+  <!-- Barras Horizontais Comparativas -->
+  <!-- Gen 0: Base -->
+  <text x="80" y="115" fill="#e6edf3" font-size="13" font-weight="bold">Geracao 0: Modelo Base (Qwen 7B Cru)</text>
+  <rect x="80" y="125" width="450" height="32" fill="#21262d" rx="6"/>
+  <rect x="80" y="125" width="189.0" height="32" fill="#d29922" rx="6"/>
+  <text x="284.0" y="146" fill="#d29922" font-size="14" font-weight="bold">42.0 / 100</text>
+
+  <!-- Gen 1: SFT v1 -->
+  <text x="80" y="195" fill="#e6edf3" font-size="13" font-weight="bold">Geracao 1: SFT Basico (antitrust-specialist)</text>
+  <rect x="80" y="205" width="450" height="32" fill="#21262d" rx="6"/>
+  <rect x="80" y="205" width="342.0" height="32" fill="#a371f7" rx="6"/>
+  <text x="437.0" y="226" fill="#a371f7" font-size="14" font-weight="bold">76.0 / 100 (+34.0)</text>
+
+  <!-- Gen 2: CoT & Augmented v2 -->
+  <text x="80" y="275" fill="#e6edf3" font-size="13" font-weight="bold">Geracao 2: CoT &amp; Data Augmentation v2 (antitrust-specialist-v2)</text>
+  <rect x="80" y="285" width="450" height="32" fill="#21262d" rx="6"/>
+  <rect x="80" y="285" width="369.0" height="32" fill="#2ea043" rx="6"/>
+  <text x="464.0" y="306" fill="#2ea043" font-size="14" font-weight="bold">82.0 / 100 (+40.0)</text>
+</svg>

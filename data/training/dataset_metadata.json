@@ -1,0 +1,8 @@
+{
+  "dataset_name": "us_v_google_antitrust_sft",
+  "total_samples": 50,
+  "train_samples": 40,
+  "eval_samples": 10,
+  "format": "Alpaca / ChatML JSONL",
+  "primary_source": "U.S. v. Google LLC (Doc 1033 - 286 pages)"
+}
