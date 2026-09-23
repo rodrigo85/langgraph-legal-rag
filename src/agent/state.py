@@ -17,6 +17,7 @@ class AgentState(TypedDict):
     current_query: str                    # Query ativa usada para busca vetorial (otimizada)
     documents: List[Document]             # Colecao de chunks da camada Gold aprovados pelo grader
     generation: str                       # Resposta sintetizada pelo LLM
+    generation_attempts: int              # Contador de geracoes consecutivas no mesmo conjunto de chunks
     retry_count: int                      # Contador de ciclos de autocorrecao
     max_retries: int                      # Limite maximo de retroalimentacoes no DAG
     web_search_needed: bool               # Flag indicando necessidade de busca externa complementar

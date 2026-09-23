@@ -54,7 +54,7 @@ def decide_to_generate(state: AgentState) -> str:
     """
     Decisao Pos-Filtro de Documentos:
     Verifica se existem dados aprovados na camada Gold para prosseguir com a sintese.
-    Caso contrario, retroalimenta o DAG via 'rewrite_query'.
+    Caso contrario, retroalimenta o DAG via 'rewrite_query' ou cai em fallback.
     """
     documents = state.get("documents", [])
     retry_count = state.get("retry_count", 0)
@@ -64,8 +64,8 @@ def decide_to_generate(state: AgentState) -> str:
             print(f"[DECISAO] Nenhum chunk qualificado. Roteando para -> REWRITE_QUERY")
             return "rewrite_query"
         else:
-            print(f"[DECISAO] Limite maximo de retentativas atingido ({retry_count}). Roteando para -> GENERATE")
-            return "generate"
+            print(f"[DECISAO] Limite maximo de retentativas atingido ({retry_count}) sem chunks validos. Roteando para -> FALLBACK")
+            return "fallback"
     
     print(f"[DECISAO] Chunks aprovados ({len(documents)}). Roteando para -> GENERATE")
     return "generate"
@@ -73,20 +73,21 @@ def decide_to_generate(state: AgentState) -> str:
 
 def grade_generation_v_documents_and_question(state: AgentState) -> str:
     """
-    Auditoria Unificada de Qualidade de Saida (Gate Consolidado):
+    Auditoria Unificada de Qualidade de Saida (Gate Consolidado com Protecao Anti-Loop):
     Avalia em UMA UNICA inferencia:
     1. Grounding (Fidelidade Factual vs Chunks)
     2. Answer Completeness (Utilidade da resposta)
-    Reduz o tempo de auditoria em 50%.
+    Garante matematicamente que o DAG nunca entre em loop infinito.
     """
     generation = state.get("generation", "")
     documents = state.get("documents", [])
     question = state["question"]
     retry_count = state.get("retry_count", 0)
+    generation_attempts = state.get("generation_attempts", 1)
     
     if not documents:
-        print("[AUDITORIA] Sem documentos base: finalizando fluxo.")
-        return "useful"
+        print("[AUDITORIA] Sem documentos base: roteando para FALLBACK.")
+        return "fallback"
 
     doc_text = "\n\n".join([f"--- [Pagina {d.metadata.get('page', '?')}] ---\n{d.page_content}" for d in documents])
     
@@ -108,7 +109,7 @@ def grade_generation_v_documents_and_question(state: AgentState) -> str:
         is_grounded = True
         is_useful = True
 
-    if not is_grounded and retry_count < MAX_RETRIES:
+    if not is_grounded:
         log_hallucination_incident(
             question=question,
             generation=generation,
@@ -116,12 +117,28 @@ def grade_generation_v_documents_and_question(state: AgentState) -> str:
             audit_summary=audit_summary,
             retry_count=retry_count,
         )
-        print("    [!] Reprovado no Gate de Grounding -> Retentando geracao ancorada.")
-        return "not_grounded"
+        # Se for a 1ª tentativa no mesmo conjunto de chunks e temos margem no DAG
+        if generation_attempts < 2 and retry_count < MAX_RETRIES:
+            print(f"    [!] Reprovado no Gate de Grounding (Tentativa {generation_attempts}) -> Retentando geracao com ancoragem reforcada.")
+            return "not_grounded"
+        
+        # Se já falhou mais de uma vez nos mesmos chunks, os chunks não possuem o fato necessário!
+        # Roteia para REWRITE_QUERY para forçar a busca de novos chunks
+        if retry_count < MAX_RETRIES:
+            print("    [!] Chunks atuais insuficientes para ancoragem factual sem alucinacao. Roteando para -> REWRITE_QUERY para buscar novas evidencias.")
+            return "not_useful"
+            
+        # Esgotou o limite global de retentativas do DAG: previne entrega de alucinação
+        print("    [!] Limite de retentativas do DAG esgotado sem ancoragem -> Roteando para FALLBACK (Abstencao).")
+        return "fallback"
 
-    if not is_useful and retry_count < MAX_RETRIES:
-        print("    [!] Reprovado no Gate de Utilidade -> Roteando para REWRITE_QUERY.")
-        return "not_useful"
+    if not is_useful:
+        if retry_count < MAX_RETRIES:
+            print("    [!] Reprovado no Gate de Utilidade -> Roteando para REWRITE_QUERY.")
+            return "not_useful"
+        else:
+            print("    [!] Resposta inconclusiva apos limite de retentativas -> Roteando para FALLBACK.")
+            return "fallback"
 
     print("    [OK] Aprovado em todos os gates -> Roteando para END.")
     return "useful"

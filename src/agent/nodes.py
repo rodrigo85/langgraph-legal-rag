@@ -107,6 +107,7 @@ def rewrite_query_node(state: AgentState) -> Dict[str, Any]:
     return {
         "current_query": improved_query,
         "retry_count": retry_count,
+        "generation_attempts": 0,
     }
 
 
@@ -117,7 +118,17 @@ def generate_node(state: AgentState) -> Dict[str, Any]:
     """
     question = state["question"]
     documents = state.get("documents", [])
-    print(f"\n[NO: GENERATE] Sintetizando resposta baseada em {len(documents)} trechos aprovados...")
+    generation_attempts = state.get("generation_attempts", 0) + 1
+    
+    if generation_attempts > 1:
+        print(f"\n[NO: GENERATE] Retentativa {generation_attempts} (Reforco de Ancoragem Literal)...")
+        effective_question = (
+            f"{question} (ATENCAO: Seja estritamente literal ao texto fornecido. "
+            "Se os fatos exatos nao constarem expressamente nos trechos, afirme que a evidencia e inconclusiva.)"
+        )
+    else:
+        print(f"\n[NO: GENERATE] Sintetizando resposta baseada em {len(documents)} trechos aprovados...")
+        effective_question = question
     
     formatted_context_parts = []
     pages_cited = set()
@@ -131,10 +142,34 @@ def generate_node(state: AgentState) -> Dict[str, Any]:
         context_str = "Nenhum documento com relevancia suficiente foi localizado na base judicial."
 
     generator = create_generator()
-    generation = generator.invoke({"context": context_str, "question": question})
+    generation = generator.invoke({"context": context_str, "question": effective_question})
     
     return {
         "generation": generation,
         "citations": sorted(list(pages_cited)),
+        "generation_attempts": generation_attempts,
+    }
+
+
+def fallback_node(state: AgentState) -> Dict[str, Any]:
+    """
+    No 5: Abstencao Pericial Elegante (Graceful Degradation).
+    Acionado quando as retentativas do DAG se esgotam sem atingir ancoragem factual 100%.
+    Garante que nenhuma alucinacao seja entregue ao usuario final.
+    """
+    print("\n[NO: FALLBACK] Aplicando abstencao pericial para evitar propagacao de alucinacao...")
+    documents = state.get("documents", [])
+    pages = sorted(list(set([str(d.metadata.get("page", "?")) for d in documents])))
+    pages_str = ", ".join(pages) if pages else "N/A"
+    disclaimer = (
+        f"Com base estritamente nos trechos documentais analisados da Sentenca Judicial (Paginas {pages_str}), "
+        "as evidencias recuperadas nao contem dados suficientes para responder a questao com certeza factual absoluta "
+        "sem recorrer a inferencias externas. Em conformidade com o protocolo pericial antitruste, "
+        "a resposta foi suspensa para evitar alucinacoes. Recomenda-se refinar a pergunta com termos judiciais mais especificos."
+    )
+    return {
+        "generation": disclaimer,
+        "hallucination_verdict": "abstained",
+        "answer_verdict": "fallback",
     }
 

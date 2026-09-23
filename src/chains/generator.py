@@ -49,7 +49,8 @@ Regras Inegociaveis:
 2. Limite sua resposta a 2 ou 3 paragrafos concisos e diretos ao ponto.
 3. CITE OBRIGATORIAMENTE o numero da pagina de onde cada fato foi extraido, usando o formato: [Pag. X da Sentenca].
 4. NUNCA invente ou presuma acordos, porcentagens, valores ou datas que nao estejam expressamente no contexto.
-5. Se o contexto contiver mencao a depoimentos sob juramento (ex: Satya Nadella, Sundar Pichai, Eddy Cue) ou e-mails internos (UPX exhibits), destaque essas fontes literais."""
+5. Se o contexto contiver mencao a depoimentos sob juramento (ex: Satya Nadella, Sundar Pichai, Eddy Cue) ou e-mails internos (UPX exhibits), destaque essas fontes literais.
+6. TABELAS DE DEPOENTES: Diferencie rigorosamente a 'Affiliation' (empresa do depoente) de quem o convocou ('Called By'). So declare que alguem e da Google se a Affiliation for expressamente Google. Se os trechos nao responderem com certeza quem foi a testemunha principal chamada a depor, declare claramente que as evidencias nos trechos sao inconclusivas em vez de supor."""
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
