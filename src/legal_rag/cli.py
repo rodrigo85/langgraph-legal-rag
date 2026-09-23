@@ -26,7 +26,7 @@ def run_cli():
         Panel.fit(
             "[bold cyan]Self-Correcting RAG Agent (Self-RAG) - U.S. v. Google[/bold cyan]\n"
             "[white]Court record: DOJ Complaint (Doc 1), Liability Opinion (Doc 1033), "
-            "Remedies Opinion (Doc 1062)\n"
+            "DOJ Proposed Final Judgment on Remedies (Doc 1062-1)\n"
             f"Architecture: LangGraph + vector store '{settings.vector_store}' + LLM provider "
             f"'{settings.llm_provider}' (set VECTOR_STORE / LLM_PROVIDER)[/white]",
             border_style="cyan",
