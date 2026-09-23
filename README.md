@@ -1,245 +1,206 @@
 <div align="center">
 
-# 🏛️ Self-Correcting RAG Engine (LangGraph)
-### *Data-Centric AI Pipeline & Cyclical DAG for Enterprise Legal Intelligence*
+# ⚖️ LangGraph Legal RAG
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
-[![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph%20v0.2+-orange.svg)](https://langchain-ai.github.io/langgraph/)
-[![ChromaDB](https://img.shields.io/badge/Vector%20Lake-ChromaDB-purple.svg)](https://www.trychroma.com/)
-[![Ollama](https://img.shields.io/badge/Local%20Inference-Ollama%20(Qwen2.5%20%7C%20Nomic)-black.svg)](https://ollama.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+### Self-correcting, auditable RAG over the *U.S. v. Google* antitrust court record — cloud-agnostic by design
 
-*Um pipeline de dados não-estruturados e sistema multi-agente determinístico desenvolvido com princípios modernos de **Engenharia de Dados & LLMOps**, aplicando a **Arquitetura Medalhão** e **DAGs Cíclicos de Autocorreção** para auditar a sentença federal antitruste **U.S. v. Google LLC** (Doc 1033 — 286 páginas).*
+[![CI](https://github.com/rodrigo85/langgraph-legal-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/rodrigo85/langgraph-legal-rag/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![LangGraph](https://img.shields.io/badge/orchestration-LangGraph-orange.svg)](https://langchain-ai.github.io/langgraph/)
+[![AWS | Azure | Local](https://img.shields.io/badge/runs%20on-AWS%20%7C%20Azure%20%7C%20Local-informational.svg)](infra/README.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 </div>
 
----
+A retrieval-augmented agent that answers investigative questions about the federal antitrust case **U.S. v. Google LLC** (complaint, liability opinion and remedies opinion — 385 pages), and **refuses to answer rather than hallucinate**. Every answer is audited for grounding by a second LLM pass; rejected drafts are sent to a dead-letter queue for review and future preference tuning.
 
-## 📌 Por que este projeto existe? (A Perspectiva de Engenharia de Dados)
-
-Tradicionalmente, a maioria das implementações de RAG no mercado falha em ambientes corporativos porque tratam LLMs como "caixas pretas milagrosas" e utilizam arquiteturas ingênuas (**Naïve RAG**):
-- **Fragilidade Semântica**: O retriever recupera chunks irrelevantes ou fora de contexto temporal, e o LLM os aceita cegamente.
-- **Alucinação Não-Auditada**: Fatos, números e datas contratuais são inventados sem ancoragem estrita (*grounding*).
-- **Falta de Linhagem de Dados (Data Lineage)**: Respostas são entregues sem rastreabilidade de quais documentos e páginas exatas originaram cada afirmação.
-
-Este projeto aborda o problema sob a ótica da **Engenharia de Dados Aplicada a IA**:
-1. **Tratamento de Dados Não-Estruturados via Arquitetura Medalhão** (Bronze $\rightarrow$ Silver $\rightarrow$ Gold).
-2. **Orquestração Orientada a Estados com LangGraph**, tratando o fluxo como um **DAG Cíclico** com *Data Quality Gates*.
-3. **Contratos de Dados Estritos com Pydantic**, forçando o modelo a responder em esquemas tipados e auditáveis.
-4. **Auditoria Dupla de Confiabilidade**: Verificadores de fidelidade factual (grounding) e completude de resposta antes de qualquer entrega ao usuário.
-
-> 🚀 **Estudo de Caso Real em Produção**: Confira o documento técnico completo [Estudo de Caso: Autocura com LangGraph e Observabilidade com Dead-Letter Queue](reports/case_study_autocura_e_dlq.md), demonstrando o ciclo real de interrupção de alucinação, rollback do DAG e gravação forense de dados para DPO.
+The same container runs **locally (Ollama + pgvector + LocalStack/Azurite)**, on **AWS (Bedrock + RDS + S3 + ECS)** or on **Azure (Azure OpenAI + PostgreSQL Flexible Server + Blob + Container Apps)** — only environment variables change.
 
 ---
 
-## 🏗️ Arquitetura do Sistema
+## What this project demonstrates
 
-### 1. Pipeline de Dados Não-Estruturados (Medallion Architecture)
+| Area | Implementation |
+| :--- | :--- |
+| **Agent orchestration** | LangGraph state machine with self-correction loops, a **provably bounded** retry budget and graceful abstention |
+| **Reliability** | Grounding/usefulness auditor that **fails closed** (an unauditable answer is never delivered) |
+| **Data engineering** | Medallion pipeline (Bronze PDFs → Silver JSONL with checksums and lineage → Gold vectors), point-in-time retrieval filter |
+| **Cloud portability** | Provider factory (Ollama / Bedrock / Azure OpenAI), vector store adapter (Chroma / pgvector), DLQ adapter (JSONL / S3 / Azure Blob) |
+| **Serving** | FastAPI with request IDs, API-key auth, timeouts, liveness/readiness probes, OpenAPI docs |
+| **Observability** | Structured JSON logs correlated by `request_id`, OpenTelemetry traces (Jaeger locally) |
+| **Infrastructure as code** | Terraform for AWS and Azure, statically validated in CI (**never applied — zero cost**) |
+| **Quality gates** | 77 unit tests (no network), 4 integration tests, Ruff lint + format, pre-commit, GitHub Actions |
+
+---
+
+## Architecture
+
+### Data pipeline (Medallion)
 
 ```mermaid
 flowchart LR
-    subgraph Bronze ["🥉 Bronze Layer (Raw)"]
-        PDF["PDF Federal Oficial<br/>Doc 1033 (286 págs)<br/>RECAP / CourtListener"]
+    subgraph Bronze["🥉 Bronze"]
+        PDF["3 court PDFs<br/>Doc 1 · Doc 1033 · Doc 1062<br/>(CourtListener / RECAP)"]
     end
-
-    subgraph Silver ["🥈 Silver Layer (Processed)"]
-        Parser["Parser & Extrator<br/>Limpeza e Normalização"]
-        JSONL["opinion_pages.jsonl<br/>(Linhagem, Hash, Página)"]
+    subgraph Silver["🥈 Silver"]
+        JSONL["385 pages · JSONL<br/>SHA-256 checksum, page lineage,<br/>disclosure dates, witnesses"]
     end
-
-    subgraph Gold ["🥇 Gold Layer (Vector Lake)"]
-        Chunker["Chunker Semântico<br/>(Size 1000, Overlap 200)"]
-        Embeddings["Embeddings Locais<br/>(nomic-embed-text)"]
-        Chroma[("ChromaDB Persistente<br/>823 Vetores Enriquecidos")]
+    subgraph Gold["🥇 Gold"]
+        VEC[("1,081 chunks<br/>Chroma (local) | pgvector (cloud)")]
     end
-
-    PDF --> Parser --> JSONL --> Chunker --> Embeddings --> Chroma
+    PDF -- "parse + clean" --> JSONL -- "chunk + embed (idempotent)" --> VEC
 ```
 
-- **Bronze**: Dados imutáveis brutos armazenados com validação de assinatura mágica de arquivo (`data/raw/`).
-- **Silver**: Extração textual página por página com cálculo de checksum SHA-256 e metadados de linhagem (`data/processed/opinion_pages.jsonl`).
-- **Gold**: Particionamento semântico calibrado para cláusulas contratuais, enriquecido com identificadores únicos de chunk (`doc1033_p{page}_c{id}`) e indexado no ChromaDB (`chroma_db/`).
-
----
-
-### 2. Orquestração do DAG Cíclico (LangGraph Architecture)
-
-Em pipelines de dados convencionais (Airflow/Dagster), DAGs são acíclicos. No entanto, para sistemas de decisão baseados em LLMs, **ciclos de retroalimentação e autocorreção são essenciais** para tratar falhas em tempo de execução:
+### Self-correcting agent (LangGraph)
 
 ```mermaid
 flowchart TD
-    Start([Início: Pergunta Investigativa]) --> Retrieve[Nó 1: Recuperação Vetorial<br/><i>ChromaDB Gold Layer</i>]
-    
-    Retrieve --> GradeDocs[Nó 2: Data Quality Gate<br/><i>Document Relevance Grader</i>]
-    
-    GradeDocs --> DecisaoDocs{Quality Gate:<br/>Existem chunks<br/>válidos?}
-    
-    DecisaoDocs -- Não (Ruído Detectado) --> RewriteQuery[Nó 3: Query Optimizer<br/><i>Reescrita de Termos Jurídicos</i>]
-    RewriteQuery --> Retrieve
-    
-    DecisaoDocs -- Sim (Dados Confiáveis) --> Generate[Nó 4: Geração Ancorada<br/><i>Síntese com Citação de Páginas</i>]
-    
-    Generate --> GradeHallucination{Gate 1: Alucinação?<br/><i>Fatos 100% ancorados?</i>}
-    
-    GradeHallucination -- Falha no Gate (Alucinou) --> Generate
-    GradeHallucination -- Aprovado (Grounded) --> GradeAnswer{Gate 2: Completude?<br/><i>Respondeu à dúvida?</i>}
-    
-    GradeAnswer -- Insuficiente --> RewriteQuery
-    GradeAnswer -- Conforme --> End([Fim: Resposta Auditada com Linhagem])
+    Q([Question]) --> R[Retrieve<br/><i>top-k, point-in-time filter</i>]
+    R --> G[Grade documents<br/><i>batch relevance gate</i>]
+    G -->|no relevant chunks| W[Rewrite query]
+    W --> R
+    G -->|relevant chunks| GEN[Generate<br/><i>grounded, page citations</i>]
+    GEN --> A{Audit<br/>grounded? useful?}
+    A -->|hallucination, 1st attempt| GEN
+    A -->|hallucination again / not useful| W
+    A -->|passed| F[Finalize] --> E([Audited answer])
+    A -->|budget exhausted or audit error| FB[Fallback: abstain] --> E2([Audited disclaimer])
+    A -. rejected draft .-> DLQ[(Dead-letter queue<br/>JSONL · S3 · Blob)]
 ```
+
+The retry budget (`MAX_RETRIES`) makes termination a guarantee, not a hope: unit tests build the real graph with a grader that *always* rejects and assert it stops in fallback after exactly `2 × MAX_RETRIES + 1` audits.
+
+### Deployment topology
+
+| Component | Local simulation (Docker, free) | AWS | Azure |
+| :--- | :--- | :--- | :--- |
+| API container | `docker compose` | ECS Fargate + ALB | Container Apps |
+| LLM + embeddings | Ollama on the host GPU | Amazon Bedrock | Azure OpenAI |
+| Vector store | `pgvector/pgvector:pg16` | RDS PostgreSQL + pgvector | PostgreSQL Flexible Server + vector |
+| Dead-letter queue | LocalStack S3 / Azurite Blob | S3 (versioned, lifecycle) | Blob Storage |
+| Traces | Jaeger | ADOT → X-Ray | Azure Monitor |
+| Secrets | `.env` | Secrets Manager → task secrets | Key Vault references |
+
+Details and Terraform modules: [`infra/`](infra/README.md).
 
 ---
 
-## 📊 Benchmark Comparativo: Naïve RAG vs. Self-Correcting RAG
+## Results (measured, including the unflattering ones)
 
-Executado através do módulo de LLMOps integrado (`python src/evaluation/benchmark.py`):
+**End-to-end run of the local production simulation** (API container + pgvector + LocalStack + Azurite + Jaeger, `qwen2.5:7b` on an RTX 2060):
 
-| Caso de Teste | Tipo de Pergunta | Naïve RAG (Baseline) | Naïve Grounded? | Self-RAG (LangGraph) | Self-RAG Grounded? | Autocorreção Ativada? |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **q1_isa_share** | Factual Direta (ISA 2016) | ~3.8s | Sim (Parcial) | ~7.2s | **100% Fiel** | Não (Direto) |
-| **q2_colloquial_nadella** | Informal / Ambiguidade | ~3.5s | ❌ Alucinou / Evasivo | ~11.4s | **100% Fiel** | **Sim (Reescrita de Query)** |
-| **q3_rsa_distribution** | Multi-contratos (RSAs Android) | ~4.1s | ❌ Misturou Cláusulas | ~8.9s | **100% Fiel** | **Sim (Filtro de Ruído)** |
+- Gold layer indexed into pgvector by the batch job: **1,081 chunks in 21 s**.
+- A query about Satya Nadella's testimony: **HTTP 200 in 18 s**, `grounded` / `useful`, pages 115 and 255 cited; the same `request_id` appears in every node's log line and in the Jaeger trace.
+- An earlier run of the same question rejected its first draft: the incident landed in **S3** as `incidents/2026/09/23/<id>.json`.
+- Switching `DLQ_BACKEND=azure_blob`: a question the retriever could not support ended in **abstention after 3 correction cycles (82 s)**, with **7 rejected drafts** stored in **Blob Storage** — no hallucination was returned.
 
-> **Trade-off de Engenharia**: O Self-RAG adiciona uma pequena sobrecarga de latência (auditoria e validação de gates), mas eleva a confiabilidade factual para **100%**, eliminando alucinações e respostas evasivas em dados corporativos sensíveis.
+**Prompt specialization benchmark** ([report](reports/training_evolution.md)) — three configurations of the *same* base model, no weight fine-tuning:
 
----
+| Configuration | Heuristic score (0–100) | Answers citing `[Pág. N]` |
+| :--- | :---: | :---: |
+| Base `qwen2.5:7b-instruct-q3_K_M` | 42.0 | 0% |
+| Modelfile v1 (domain system prompt) | 76.0 | 100% |
+| Modelfile v2 (structured Evidence / Analysis / Conclusion prompt) | 82.0 | 100% |
 
-## 📈 Prova de Evolução do Modelo (Fine-Tuning & GPU Acceleration)
+### Known limitations
 
-Para comprovar cientificamente que o modelo se tornou um perito de domínio e não apenas um consumidor de prompts, desenvolvemos um pipeline de **Supervised Fine-Tuning (SFT)** com aceleração total de hardware via **NVIDIA GeForce RTX 2060 (num_gpu 99)**:
-
-### 1. Curva de Convergência Matemática (Loss & Perplexity)
-A incerteza preditiva do modelo sobre a terminologia jurídica e contratual desclassificada foi reduzida drasticamente ao longo dos steps de treinamento:
-
-<div align="center">
-  <img src="./reports/loss_convergence.svg" alt="Curva de Convergência de Treinamento" width="85%"/>
-</div>
-
-- **Perplexidade Inicial (Modelo Base)**: `17.20`
-- **Perplexidade Final (Especialista)**: `1.77` (**-89.7% de redução de incerteza preditiva**)
-- **Throughput de Inferência na RTX 2060**: **~25 a 35 tokens/segundo**
-
-### 2. Scorecard Cego de Inteligência: "Antes vs. Depois" (A/B Blind Test)
-Avaliamos 4 cenários desafiadores de alta ambiguidade no dataset de validação (`data/training/eval.jsonl`):
-
-| Cenário de Teste Judicial | Modelo Base (`Qwen 7B`) | Especialista Treinado (`antitrust-specialist`) | Ganho de Inteligência | Linhagem / Citação |
-| :--- | :---: | :---: | :---: | :---: |
-| **T1: Acordo ISA Google-Apple (36%)** | 54 / 100 | **54 / 100** | +0 pts (Empate técnico) | ❌ Ausente |
-| **T2: Depoimento Bombástico Satya Nadella** | 46 / 100 | **90 / 100** | **+44 pontos** | ✅ **`[Pág. 1234 da Sentença]`** |
-| **T3: Acordos MADA e RSA no Android** | 38 / 100 | **74 / 100** | **+36 pontos** | ✅ **`[Pág. 113 da Sentença]`** |
-| **T4: Veredito Monopólio Sherman Act §2** | 38 / 100 | **38 / 100** | +0 pts (Ambos acertaram) | ❌ Ausente |
-| **MÉDIA GERAL DO MODELO** | **44.0 pts** | **64.0 pts** | **+45.5% de Ganho Real** | **+50% de Rigor Forense** |
-
-> 📄 **Relatório de Auditoria Completo**: Para conferir as respostas literais lado a lado e a auditoria linha por linha, acesse o documento [`reports/training_evolution.md`](./reports/training_evolution.md).
-
-## 📂 Estrutura do Repositório
-
-```
-llm/
-├── data/
-│   ├── raw/                   # [Bronze] PDF original de 286 páginas (Doc 1033)
-│   ├── processed/             # [Silver] opinion_pages.jsonl estruturado com hashes
-│   └── samples/               # Golden Dataset para benchmark de avaliação (qa_benchmark.json)
-├── chroma_db/                 # [Gold] Vector Lake persistente indexado
-├── src/
-│   ├── pipeline/              # ETL de Dados Não-Estruturados
-│   │   ├── downloader.py      # Ingestão idempotente da fonte oficial
-│   │   ├── parser.py          # Transformação Bronze -> Silver com metadados
-│   │   └── indexer.py         # Transformação Silver -> Gold no ChromaDB
-│   ├── agent/                 # Orquestração do DAG LangGraph
-│   │   ├── state.py           # Esquema e contratos tipados de estado (TypedDict)
-│   │   ├── nodes.py           # Nós operacionais (Retrieve, Grade, Generate, Rewrite)
-│   │   ├── edges.py           # Lógica de roteamento e gates de validação
-│   │   └── graph.py           # Compilação do grafo de estados
-│   ├── chains/                # Interfaces LLM com Validações Pydantic
-│   │   ├── doc_grader.py      # Filtro de ruído (Data Cleaning)
-│   │   ├── generator.py       # Síntese com citação de linhagem
-│   │   ├── hallucination_grader.py  # Gate de fidelidade aos fatos
-│   │   ├── answer_grader.py   # Auditor de utilidade e conformidade
-│   │   └── query_rewriter.py  # Reformulador técnico de termos
-│   ├── evaluation/            # LLMOps & Avaliação Contínua
-│   │   └── benchmark.py       # Script de benchmark comparativo
-│   ├── config.py              # Centralização de parâmetros e variáveis
-│   └── cli.py                 # Interface interativa rica no terminal
-├── tests/
-│   ├── test_pipeline.py       # Testes unitários de ingestão e chunking
-│   └── test_agent.py          # Testes de integração ponta a ponta do DAG
-├── docker/
-│   ├── Dockerfile             # Container de produção
-│   └── docker-compose.yml     # Orquestração com volumes persistentes
-├── Makefile                   # Automação de tarefas de engenharia
-├── requirements.txt           # Dependências de produção
-├── requirements-dev.txt       # Dependências de desenvolvimento e testes
-└── .env.example               # Exemplo de configuração de ambiente
-```
+- **The judge is as small as the generator.** The auditor is the same 7B quantized model; in one run it approved an answer with a wrong figure. In production the auditor should be a stronger model (e.g. Claude on Bedrock or GPT-4-class on Azure — a config change here) and be evaluated against a labeled set.
+- **Retrieval recall is the bottleneck.** Pure vector top-4 missed the passage stating Google paid Apple 36% of Safari revenue, so the agent (correctly) abstained. Next step: hybrid BM25 + vector search with a cross-encoder reranker.
+- **The benchmark is small and heuristic** (4 scenarios, keyword/format scoring; page numbers are checked for format, not validity).
+- **No weight fine-tuning yet.** The SFT/CoT/DPO datasets in `data/training/` are prepared for a future LoRA run.
+- **Cloud infrastructure is validated, not deployed** (`terraform validate` in CI) to keep this personal project at zero cost.
 
 ---
 
-## 🚀 Como Executar Localmente
+## Quickstart
 
-### 1. Pré-requisitos
-- Python 3.10+
-- [Ollama](https://ollama.com/) instalado com os modelos:
-  ```bash
-  ollama pull qwen2.5:7b-instruct-q3_K_M
-  ollama pull nomic-embed-text
-  ```
+### 1. Local development (virtualenv + Ollama)
 
-### 2. Instalação
 ```bash
-# Criar ambiente virtual
-python -m venv .venv
-source .venv/bin/activate  # No Windows: .\.venv\Scripts\Activate.ps1
+python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
 
-# Instalar dependências
-make install  # ou: pip install -r requirements-dev.txt
+ollama pull qwen2.5:7b-instruct-q3_K_M && ollama pull nomic-embed-text
+make specialize          # registers antitrust-specialist(-v2) from the Modelfiles
+make pipeline            # Bronze -> Silver -> Gold (Chroma on disk)
+
+make test                # 77 unit tests, no network
+make run                 # interactive CLI
+make api                 # http://localhost:8000/docs
 ```
 
-### 3. Execução do Pipeline de Dados (Bronze $\rightarrow$ Silver $\rightarrow$ Gold)
-```bash
-make pipeline
-```
-*Isto irá baixar automaticamente a sentença federal de 286 páginas, estruturar o JSONL da camada Silver e indexar os 823 chunks na camada Gold no ChromaDB de forma idempotente.*
+### 2. Local production simulation (Docker)
 
-### 4. Executar a Suite de Testes
 ```bash
-make test
-```
+make up                  # API + pgvector + LocalStack (S3) + Azurite + Jaeger
+make index               # one-off job: build the Gold layer inside pgvector
+make up-azure            # same stack, DLQ on Azure Blob (Azurite)
 
-### 5. Executar o Benchmark de LLMOps
-```bash
-make benchmark
+curl -X POST localhost:8000/v1/query \
+  -H "X-API-Key: local-dev-key" -H "Content-Type: application/json" \
+  -d '{"question": "O que Satya Nadella testemunhou sobre o Bing?"}'
 ```
 
-### 6. Iniciar a Interface Interativa
-```bash
-make run  # ou: python src/cli.py
-```
+Jaeger UI: http://localhost:16686 · OpenAPI: http://localhost:8000/docs
+
+### 3. Cloud
+
+The app reads only environment variables. For AWS: `LLM_PROVIDER=bedrock`, `VECTOR_STORE=pgvector`, `DLQ_BACKEND=s3`. For Azure: `LLM_PROVIDER=azure_openai`, `VECTOR_STORE=pgvector`, `DLQ_BACKEND=azure_blob`. See [`infra/terraform/aws`](infra/terraform/aws/README.md) and [`infra/terraform/azure`](infra/terraform/azure/README.md) — running them creates billable resources.
 
 ---
 
-## 🐳 Execução via Docker Compose
+## Configuration
 
-```bash
-cd docker
-docker-compose up --build
+All settings live in [`src/legal_rag/config.py`](src/legal_rag/config.py) (pydantic-settings) and can be set as environment variables:
+
+| Variable | Default | Purpose |
+| :--- | :--- | :--- |
+| `LLM_PROVIDER` / `EMBEDDING_PROVIDER` | `ollama` | `ollama` · `bedrock` · `azure_openai` |
+| `OLLAMA_BASE_URL`, `OLLAMA_LLM_MODEL`, `OLLAMA_EMBED_MODEL` | local | Ollama endpoint and models |
+| `AWS_REGION`, `BEDROCK_LLM_MODEL_ID`, `BEDROCK_EMBED_MODEL_ID` | `us-east-1`, Claude, Titan v2 | Bedrock |
+| `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_*_DEPLOYMENT` | — | Azure OpenAI |
+| `VECTOR_STORE`, `PGVECTOR_DSN` | `chroma` | `chroma` · `pgvector` |
+| `DLQ_BACKEND`, `DLQ_S3_BUCKET`, `AWS_ENDPOINT_URL`, `AZURE_STORAGE_CONNECTION_STRING` | `jsonl` | `jsonl` · `s3` · `azure_blob` |
+| `TOP_K_DOCUMENTS`, `MAX_RETRIES`, `CHUNK_SIZE`, `CHUNK_OVERLAP` | 4, 3, 1000, 200 | RAG hyperparameters |
+| `API_KEY`, `REQUEST_TIMEOUT_SECONDS` | —, 180 | API auth and timeout |
+| `LOG_FORMAT`, `LOG_LEVEL`, `OTEL_ENABLED`, `OTEL_EXPORTER_OTLP_ENDPOINT` | `text`, `INFO`, `false` | Observability |
+
+---
+
+## Repository layout
+
+```
+├── src/legal_rag/
+│   ├── agent/            # LangGraph state, nodes, routing edges, graph
+│   ├── chains/           # LLM chains with Pydantic structured outputs (graders, generator, rewriter)
+│   ├── api/              # FastAPI service
+│   ├── pipeline/         # Bronze downloader, Silver parser, Gold indexer, docket registry
+│   ├── storage/          # vector store and dead-letter queue adapters
+│   ├── evaluation/       # benchmarks and cross-layer data quality audit
+│   ├── training/         # Modelfiles, dataset generation (SFT / CoT / DPO)
+│   ├── providers.py      # LLM / embedding provider factory
+│   ├── observability.py  # JSON logging, OpenTelemetry
+│   └── config.py         # typed settings
+├── tests/unit/           # fast, offline (fakes, moto)
+├── tests/integration/    # real Ollama + index (pytest -m integration)
+├── docker/               # multi-stage Dockerfile, LocalStack init
+├── docker-compose.yml    # local production simulation
+├── infra/terraform/      # AWS and Azure modules (validated, not applied)
+├── data/                 # raw PDFs, metadata, samples, training datasets, DLQ log
+└── reports/              # evaluation reports and case study (Portuguese)
 ```
 
----
-
-## 🛠️ Tecnologias Utilizadas
-
-- **Orquestração de Grafos**: [LangGraph](https://langchain-ai.github.io/langgraph/)
-- **Vector Lake**: [ChromaDB](https://www.trychroma.com/)
-- **Modelos de Linguagem & Embeddings**: Ollama (`Qwen 2.5 7B`, `Nomic Embed Text`)
-- **Contratos & Tipagem**: [Pydantic v2](https://docs.pydantic.dev/) & `typing_extensions`
-- **Processamento de PDFs**: `PyMuPDF` (`fitz`) e `PyPDF`
-- **Testes & Qualidade**: `Pytest`, `Ruff`, `Black`
-- **UI de Terminal**: [Rich](https://github.com/Textualize/rich)
-- **Containerização**: `Docker` & `Docker Compose`
+The [case study](reports/case_study_autocura_e_dlq.md) (in Portuguese) walks through real incidents: a hallucinated executive caught by the auditor, the infinite-loop bug and its bounded fix, and the false-premise abstention flow.
 
 ---
 
-## 👨‍💻 Autor
+## Roadmap
 
-Projeto desenvolvido como vitrine técnica de **Engenharia de Dados voltada a Sistemas de Inteligência Artificial & LLMOps**, demonstrando como arquitetar soluções de recuperação e auditoria de documentos com rigor, confiabilidade e reprodutibilidade.
+- Hybrid retrieval (BM25 + vectors) and a cross-encoder reranker; HNSW index in pgvector
+- Stronger, separately evaluated auditor model; labeled evaluation set with CI regression gate
+- LoRA fine-tuning on the prepared SFT/DPO datasets
+- Keyless auth (managed identity / IAM roles) for Azure OpenAI and Blob
+
+## License
+
+[MIT](LICENSE) © Rodrigo Andreatta da Costa

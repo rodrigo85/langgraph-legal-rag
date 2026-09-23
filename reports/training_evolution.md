@@ -1,49 +1,50 @@
-# 📈 Relatório de Evolução de Inteligência: 3 Gerações de IA
-### *U.S. v. Google LLC Antitrust LLM Specialist (NVIDIA GeForce RTX 2060)*
+# 📈 Relatório de Evolução: 3 Configurações do Mesmo Modelo Base
+### *U.S. v. Google LLC — Especialização de Domínio via Modelfile (Ollama, RTX 2060)*
 
-Este relatório documenta a **trajetória de engenharia de IA e maturidade contínua** através de 3 iterações estruturadas:
-1. **Geração 0 (Baseline)**: Modelo pré-treinado cru (`Qwen 2.5 7B`).
-2. **Geração 1 (SFT Básico)**: Ajuste supervisionado inicial (`antitrust-specialist`).
-3. **Geração 2 (CoT & Data Augmentation)**: Modelo com raciocínio guiado, aumento sintético de 150+ amostras e estrutura probatória mandatória (`antitrust-specialist-v2`).
+Este relatório compara **três configurações do mesmo modelo base** (`qwen2.5:7b-instruct-q3_K_M`). **Não houve ajuste de pesos (fine-tuning)**: a especialização é feita por *system prompt* e parâmetros de inferência definidos em Modelfiles do Ollama.
+
+1. **Geração 0 (Baseline)**: modelo base, sem system prompt.
+2. **Geração 1 (Modelfile v1)**: system prompt de domínio exigindo citação `[Pág. N]` (`antitrust-specialist`).
+3. **Geração 2 (Modelfile v2)**: prompt estruturado em Evidência / Análise / Conclusão, temperatura 0 (`antitrust-specialist-v2`).
 
 ---
 
-## 📊 1. Quadro Comparativo de Desempenho
+## 📊 1. Quadro Comparativo
 
-| Métrica de Avaliação | Geração 0 (Base) | Geração 1 (SFT v1) | Geração 2 (CoT v2) | Ganho Total Acumulado |
+| Métrica | Geração 0 (Base) | Geração 1 (Modelfile v1) | Geração 2 (Modelfile v2) | Ganho Total |
 | :--- | :---: | :---: | :---: | :---: |
-| **Pontuação Média de Inteligência** | **42.0 pts** | **76.0 pts** | **82.0 pts** | **+40.0 pontos (+95.2%)** |
-| **Conformidade de Citação (`[Pág. X]`)** | **0%** | **100%** | **100%** | **+100% de Adesão Estrita** |
-| **Perplexidade Preditiva** | **17.20** | **1.77** | **1.14** | **-93.4% de Incerteza** |
-| **Velocidade de Geração na GPU** | N/A | ~24 t/s | **~25-32 t/s** | **Aceleração VRAM Total (RTX 2060)** |
+| **Score heurístico médio (0-100)** | **42.0 pts** | **76.0 pts** | **82.0 pts** | **+40.0 pontos (+95.2%)** |
+| **Respostas com citação no formato `[Pág. N]`** | **0%** | **100%** | **100%** | **+100 p.p.** |
+
+> **Como o score é calculado:** 40% presença de citação no formato `[Pág. N]`, 40% cobertura de termos esperados, 20% estrutura em seções. Amostra de 4 cenários, temperatura 0.
 
 ---
 
-## 📉 2. Gráfico Visual de Progressão de Inteligência
+## 📉 2. Gráfico
 
-![Progressão de Inteligência por Gerações](./evolution_3_generations.svg)
+![Score por configuração](./evolution_3_generations.svg)
 
 ---
 
-## 📋 3. Scorecard Detalhado por Cenário de Teste
+## 📋 3. Scorecard por Cenário
 
-| Cenário de Teste | Gen 0 (Base) | Gen 1 (SFT v1) | Gen 2 (CoT v2) | Citação Gen 2 | Ganho Acumulado |
+| Cenário de Teste | Gen 0 (Base) | Gen 1 (Modelfile v1) | Gen 2 (Modelfile v2) | Citação Gen 2 (formato) | Ganho |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **T1_ISA_APPLE** | 56/100 | 88/100 | **92/100** | **Sim (100%)** | **+36 pts** |
-| **T2_NADELLA_TESTIMONY** | 36/100 | 80/100 | **84/100** | **Sim (100%)** | **+48 pts** |
-| **T3_ANDROID_MADA** | 48/100 | 72/100 | **76/100** | **Sim (100%)** | **+28 pts** |
-| **T4_SHERMAN_VERDICT** | 28/100 | 64/100 | **76/100** | **Sim (100%)** | **+48 pts** |
+| **T1_ISA_APPLE** | 56/100 | 88/100 | **92/100** | Sim | **+36 pts** |
+| **T2_NADELLA_TESTIMONY** | 36/100 | 80/100 | **84/100** | Sim | **+48 pts** |
+| **T3_ANDROID_MADA** | 48/100 | 72/100 | **76/100** | Sim | **+28 pts** |
+| **T4_SHERMAN_VERDICT** | 28/100 | 64/100 | **76/100** | Sim | **+48 pts** |
 
 ---
 
-## 🔬 4. Análise Qualitativa Comparativa (Deep Dive)
+## 🔬 4. Análise Qualitativa (Deep Dive)
 
 
 ### 🔍 Cenário T1_ISA_APPLE
 **Pergunta:** *Qual era a porcentagem da receita que o Google repassava para a Apple no contrato ISA em 2016 e qual a sua motivacao concorrencial?*
 
 <details>
-<summary><b>Evolução das Respostas em 3 Gerações (Clique para expandir)</b></summary>
+<summary><b>Respostas das 3 configurações (clique para expandir)</b></summary>
 
 #### 🔴 Geração 0: Modelo Base (Nota 56/100)
 > A pergunta investigativa parece estar relacionada à análise de um contrato de parceria entre Apple e Google, especificamente o Acordo de Serviço de Anúncio (ISA) de 2016. Com base na informação fornecida, podemos responder à pergunta da seguinte forma:
@@ -56,14 +57,14 @@ A porcentagem de 36% foi estabelecida para criar uma poderosa desincentivadora p
 
 Esse tipo de acordo é comum em indústrias tecnológicas, onde as empresas frequentemente cooperam para evitar a criação de concorrentes poderosos e para garantir a continuidade de suas parcerias estratégicas.
 
-#### 🟣 Geração 1: SFT Inicial (Nota 88/100)
+#### 🟣 Geração 1: Modelfile v1 (Nota 88/100)
 > De acordo com o contexto probatorio dos autos judiciais, em 2016, Apple e Google modificaram o ISA (Information Services Agreement) [Pag. 123 da Sentenca]. Segundo o documento, sob a amendentação de 2016, Google pagou a Apple 36% do rendimento bruto proveniente das consultas de busca realizadas através do navegador Safari [Pag. 123 da Sentenca].
 
 A motivação concorrencial por trás dessa porcentagem específica pode ser interpretada como um mecanismo de alinhamento de interesses entre as duas empresas. O pagamento de 36% do rendimento bruto cria um forte incentivo para que Apple não desenvolva seu próprio mecanismo de busca, pois isso significaria uma perda significativa de receita para a Apple. Essa disposição pode ter sido projetada para manter a dependência da Apple do Google para as consultas de busca, fortalecendo a posição dominante do Google no mercado de buscas, especialmente em um contexto onde o Safari era o navegador padrão do iOS.
 
 Esta disposição, portanto, pode ser vista como uma estratégia de manutenção de monopólio ilícito, conforme discutido na seção 2 do Sherman Act, que proíbe a manutenção de monopólios ilegítimos em mercados gerais de buscas e anúncios de texto [Pag. 123 da Sentenca].
 
-#### 🟢 Geração 2: CoT & Augmented Specialist (Nota 92/100)
+#### 🟢 Geração 2: Modelfile v2 (Nota 92/100)
 > ### ⚖️ EVIDÊNCIA FACTUAL [Pág. 123 da Sentença]
 Em 2016, Apple e Google modificaram o Acordo de Interconexão de Sistemas (ISA). De acordo com o artigo 4.3 do contrato, sob a modificação de 2016, Google pagou 36% do lucro líquido das consultas de Safari para a Apple. Este acordo criou um forte incentivo desincentivo para a Apple desenvolver seu próprio mecanismo de busca.
 
@@ -74,8 +75,8 @@ A porcentagem de 36% do lucro líquido das consultas de Safari que o Google repa
 A porcentagem de 36% do lucro líquido das consultas de Safari que o Google repassava à
 
 **Auditoria:**
-- Linhagem na Gen 2: **100% de Citação Rastreável**
-- Evolução Total: **+36 pontos**
+- Citação no formato `[Pág. N]` na Gen 2: **Sim** (formato, não validade da página)
+- Evolução total: **+36 pontos**
 </details>
 
 
@@ -83,19 +84,19 @@ A porcentagem de 36% do lucro líquido das consultas de Safari que o Google repa
 **Pergunta:** *O que Satya Nadella (Microsoft) testemunhou sobre a teoria do Google de que a concorrencia esta a 'apenas um clique de distancia'?*
 
 <details>
-<summary><b>Evolução das Respostas em 3 Gerações (Clique para expandir)</b></summary>
+<summary><b>Respostas das 3 configurações (clique para expandir)</b></summary>
 
 #### 🔴 Geração 0: Modelo Base (Nota 36/100)
 > Satya Nadella, CEO da Microsoft, afirmou em sua testemunho que a declaração do Google de que a concorrência está "apenas um clique de distância" é uma "completa ficção" na prática. Isso sugere que, na prática, a Microsoft acha que não é tão fácil para os usuários trocar de busca para uma alternativa como Bing, mesmo que estejam usando dispositivos Apple que não tenham o status de padrão do Safari (que é configurado para usar o Google Search por padrão).
 
 Em outras palavras, Nadella está indicando que, sem o status de padrão em dispositivos Apple, a Bing não pode atingir o volume de consultas necessárias para competir efetivamente com o Google.
 
-#### 🟣 Geração 1: SFT Inicial (Nota 80/100)
+#### 🟣 Geração 1: Modelfile v1 (Nota 80/100)
 > Satya Nadella, CEO da Microsoft, testemunhou que a afirmação de Google de que a concorrência está "apenas um clique de distancia" é uma "completa ficção" na prática. De acordo com a declaração de Nadella, sem o status de padrão por definição em dispositivos da Apple, o motor de busca Bing não pode alcançar o escopo de consultas necessárias para competir efetivamente. Essa afirmação é explicitamente registrada na página 112 da Sentença [Pag. 112 da Sentença].
 
 Esta declaração de Nadella enfatiza a dependência significativa do Bing em ter acesso a dispositivos comuns, como os da Apple, para competir efetivamente com o motor de busca do Google. A ausência do status de padrão em dispositivos Apple limita significativamente a visibilidade e a escala de consultas que Bing pode alcançar, demonstrando que a afirmação de Google de que a concorrência está "apenas um clique de distancia" não é, na prática, uma realidade para os concorrentes.
 
-#### 🟢 Geração 2: CoT & Augmented Specialist (Nota 84/100)
+#### 🟢 Geração 2: Modelfile v2 (Nota 84/100)
 > ### ⚖️ EVIDÊNCIA FACTUAL [Pág. X da Sentença]
 Satya Nadella, CEO da Microsoft, testemunhou que a afirmação de que a concorrência está "apenas um clique de distância" da Google é uma farsa em prática. De acordo com as declarações do relatório judicial, isso se refere especificamente à falta de status padrão no dispositivo Apple, o que impede que o Bing atinja o escopo de consultas necessário para competir efetivamente [Pág. 123 da Sentença].
 
@@ -106,8 +107,8 @@ Esta testemunho de Satya Nadella é crucial para demonstrar a realidade do merca
 A declaração de Satya Nadella enfatiza a importância de um ambiente de mercado justo e competitivo. A falta de um status padrão no dispositivo Apple para o Bing implica uma desigualdade de condições que pode prejudicar a concorrência. Isso sugere que a prática de Google pode estar violando as leis antitruste, uma vez
 
 **Auditoria:**
-- Linhagem na Gen 2: **100% de Citação Rastreável**
-- Evolução Total: **+48 pontos**
+- Citação no formato `[Pág. N]` na Gen 2: **Sim** (formato, não validade da página)
+- Evolução total: **+48 pontos**
 </details>
 
 
@@ -115,7 +116,7 @@ A declaração de Satya Nadella enfatiza a importância de um ambiente de mercad
 **Pergunta:** *O que sao os acordos MADA e RSA que o Google impunha aos fabricantes de smartphones Android?*
 
 <details>
-<summary><b>Evolução das Respostas em 3 Gerações (Clique para expandir)</b></summary>
+<summary><b>Respostas das 3 configurações (clique para expandir)</b></summary>
 
 #### 🔴 Geração 0: Modelo Base (Nota 48/100)
 > Os acordos MADA (Mobile Application Distribution Agreement) e RSA (Revenue Share Agreement) são contratos que o Google exigia dos fabricantes de dispositivos móveis, incluindo os fabricantes de smartphones Android, como condição para permitir a pré-instalação de aplicativos do Google e garantir pagamentos.
@@ -130,7 +131,7 @@ A declaração de Satya Nadella enfatiza a importância de um ambiente de mercad
 
 Esses acordos foram critic
 
-#### 🟣 Geração 1: SFT Inicial (Nota 72/100)
+#### 🟣 Geração 1: Modelfile v1 (Nota 72/100)
 > Os acordos MADA (Mobile Application Distribution Agreement) e RSA (Revenue Share Agreement) que o Google impunha aos fabricantes de smartphones Android são instrumentos contratuais de grande importância no processo judicial U.S. v. Google LLC, conforme detalhado na sentença do caso [Pag. 123 da Sentenca].
 
 Os MADAs eram acordos obrigatórios que vinculavam as lojas de aplicativos do Google Play Store aos aplicativos proprietários do Google, como o Google Search, o Google Maps e o Google Chrome. Esses acordos estabeleciam condições para a disponibilidade dos aplicativos do Google, muitas vezes exigindo que os dispositivos preinstalassem o conjunto completo do Google Suite, o que restringia significativamente a competitividade no mercado de busca e serviços de aplicativos [Pag. 124 da Sentenca].
@@ -139,7 +140,7 @@ Os RSAs, por sua vez, eram acordos de compartilhamento de receita que vinculavam
 
 Ambos os tipos de acordos foram citados como evidências de práticas anticompetitivas por parte do Google, viol
 
-#### 🟢 Geração 2: CoT & Augmented Specialist (Nota 76/100)
+#### 🟢 Geração 2: Modelfile v2 (Nota 76/100)
 > ### ⚖️ EVIDÊNCIA FACTUAL [Pág. X da Sentença]
 Os autos judiciais comprovam que Google utilizava Acordos de Difusão de Aplicativos Móveis (Mobile Application Distribution Agreements - MADAs) para exigir que os fabricantes de dispositivos móveis preinstalassem toda a suite de aplicativos Google. Além disso, Google também empregava Acordos de Comissão de Receita (Revenue Share Agreements - RSAs) para condicionar pagamentos a dispositivos móveis que não preinstalassem motores de busca rivais [Pág. 123 da Sentença].
 
@@ -150,8 +151,8 @@ Os acordos MADA e RSA que Google impunha aos fabricantes de smartphones Android 
 A conclusão forense é que os acordos MADA e RSA que Google impunha aos fabricantes de smartphones Android eram instrumentos estratégicos para man
 
 **Auditoria:**
-- Linhagem na Gen 2: **100% de Citação Rastreável**
-- Evolução Total: **+28 pontos**
+- Citação no formato `[Pág. N]` na Gen 2: **Sim** (formato, não validade da página)
+- Evolução total: **+28 pontos**
 </details>
 
 
@@ -159,19 +160,19 @@ A conclusão forense é que os acordos MADA e RSA que Google impunha aos fabrica
 **Pergunta:** *Qual foi a conclusao final do Juiz Amit Mehta sobre o monopolio do Google sob a Secao 2 do Sherman Act?*
 
 <details>
-<summary><b>Evolução das Respostas em 3 Gerações (Clique para expandir)</b></summary>
+<summary><b>Respostas das 3 configurações (clique para expandir)</b></summary>
 
 #### 🔴 Geração 0: Modelo Base (Nota 28/100)
 > De acordo com o contexto fornecido, a conclusão final do Juiz Amit Mehta sobre o monopólio do Google sob a Seção 2 do Sherman Act foi que o Google é um monopolista em serviços de busca geral e anúncios de texto em busca geral, e que mantém seu monopólio através de acordos de exclusividade distributiva anticompetitivos, em violação da Seção 2 do Sherman Act.
 
 Para responder à sua pergunta investigativa diretamente: O Juiz Amit Mehta concluiu que o Google é um monopolista em serviços de busca geral e anúncios de texto em busca geral, e que mantém seu monopólio através de acordos de exclusividade distributiva anticompetitivos, o que constitui uma violação da Seção 2 do Sherman Act.
 
-#### 🟣 Geração 1: SFT Inicial (Nota 64/100)
+#### 🟣 Geração 1: Modelfile v1 (Nota 64/100)
 > O Juiz Amit Mehta concluiu que o Google é um monopolista em serviços de busca gerais e anúncios de texto gerais, e que mantém seu monopólio através de acordos de distribuição exclusiva anticompetitivos, em violação à Seção 2 do Sherman Act [Pag. 1234 da Sentenca].
 
 Esta conclusão é explicitamente estabelecida no documento judicial, onde o Juiz Mehta detalha as evidências que levaram à essa determinação, incluindo a análise dos ISA (Information Services Agreement) e RSA (Revenue Share Agreement) [Pag. 1235 da Sentenca], bem como a MADA (Mobile Application Distribution Agreement) [Pag. 1236 da Sentenca], que foram considerados como elementos cruciais na manutenção do monopólio do Google.
 
-#### 🟢 Geração 2: CoT & Augmented Specialist (Nota 76/100)
+#### 🟢 Geração 2: Modelfile v2 (Nota 76/100)
 > ### ⚖️ EVIDÊNCIA FACTUAL [Pág. 111 da Sentença]
 O Juiz Amit Mehta concluiu que o Google é um monopolista em serviços de busca geral e anúncios de texto de busca geral, e que mantém seu monopólio através de acordos de distribuição exclusiva anticompetitivos em violação da Seção 2 do Sherman Act [Pág. 111 da Sentença].
 
@@ -182,16 +183,15 @@ O Juiz Amit Mehta enfatizou que o Google exerceu um poder significativo de merca
 O Juiz Amit Mehta concluiu que o Google é um monopolista em serviços de busca geral e anúncios de texto de busca geral, mantendo seu monopólio através de acordos de distribuição exclusiva anticompetitivos, em violação da Seção 2 do Sherman Act [Pág. 111 da Sentença].
 
 **Auditoria:**
-- Linhagem na Gen 2: **100% de Citação Rastreável**
-- Evolução Total: **+48 pontos**
+- Citação no formato `[Pág. N]` na Gen 2: **Sim** (formato, não validade da página)
+- Evolução total: **+48 pontos**
 </details>
 
 
 ---
 
-## 🏆 Conclusão para Portfólio de Engenharia de Dados & IA
+## ⚠️ Limitações Conhecidas
 
-A progressão comprovou o ciclo de excelência de um Engenheiro de IA:
-1. **Diagnóstico da Geração 1**: O modelo havia aprendido o jargão, mas ainda falhava em ancorar a citação formal em 50% dos casos.
-2. **Solução de Dados (Data-Centric AI)**: Criamos um pipeline de aumento sintético com 152 amostras adicionais incorporando **Chain-of-Thought** e pares de preferência DPO.
-3. **Resultado na Geração 2**: O modelo alcançou **82.0/100 de pontuação**, **100% de conformidade em citações judiciais** e respostas com separação cirúrgica entre Fato, Análise e Conclusão.
+1. **Citação checada no formato, não na validade**: o contexto fornecido nos testes não contém números de página, portanto os números citados pelos modelos são inventados. O ganho mede **aderência ao formato exigido pelo prompt**, não precisão de linhagem. A linhagem real de páginas é garantida no agente RAG (metadados de página dos chunks), não neste benchmark.
+2. **Amostra pequena** (4 cenários) e score heurístico baseado em palavras-chave.
+3. **Sem ajuste de pesos**: os datasets SFT/CoT/DPO em `data/training/` estão preparados para um fine-tuning LoRA futuro, ainda não executado.
