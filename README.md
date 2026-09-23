@@ -12,7 +12,7 @@
 
 </div>
 
-A retrieval-augmented agent that answers investigative questions about the federal antitrust case **U.S. v. Google LLC** (complaint, liability opinion and remedies opinion — 385 pages), and **refuses to answer rather than hallucinate**. Every answer is audited for grounding by a second LLM pass; rejected drafts are sent to a dead-letter queue for review and future preference tuning.
+A retrieval-augmented agent that answers investigative questions about the federal antitrust case **U.S. v. Google LLC** (the DOJ complaint, the liability opinion and the DOJ’s proposed final judgment on remedies — 385 pages), and **refuses to answer rather than hallucinate**. Every answer is audited for grounding by a second LLM pass; rejected drafts are sent to a dead-letter queue for review and future preference tuning.
 
 The same container runs **locally (Ollama + pgvector + LocalStack/Azurite)**, on **AWS (Bedrock + RDS + S3 + ECS)** or on **Azure (Azure OpenAI + PostgreSQL Flexible Server + Blob + Container Apps)** — only environment variables change.
 
