@@ -141,7 +141,7 @@ curl -X POST localhost:8000/v1/query \
   -d '{"question": "O que Satya Nadella testemunhou sobre o Bing?"}'
 ```
 
-Jaeger UI: http://localhost:16686 · OpenAPI: http://localhost:8000/docs
+Jaeger UI: http://localhost:16686 · OpenAPI: http://localhost:8000/docs · Service-by-service guide: [`docker/README.md`](docker/README.md)
 
 ### 3. Cloud
 
@@ -187,10 +187,10 @@ All settings live in [`src/legal_rag/config.py`](src/legal_rag/config.py) (pydan
 ├── docker-compose.yml    # local production simulation
 ├── infra/terraform/      # AWS and Azure modules (validated, not applied)
 ├── data/                 # raw PDFs, metadata, samples, training datasets, DLQ log
-└── reports/              # evaluation reports and case study (Portuguese)
+└── reports/              # evaluation reports and case study
 ```
 
-The [case study](reports/case_study_autocura_e_dlq.md) (in Portuguese) walks through real incidents: a hallucinated executive caught by the auditor, the infinite-loop bug and its bounded fix, and the false-premise abstention flow.
+The [case study](reports/case_study_autocura_e_dlq.md) walks through real incidents: a hallucinated executive caught by the auditor, the infinite-loop bug and its bounded fix, and the false-premise abstention flow.
 
 ---
 
