@@ -267,7 +267,148 @@ O rascunho com desinformação foi **expurgado da memória volátil** e arquivad
 
 ---
 
-## 8. O Ciclo do Data Flywheel (DPO / Fine-Tuning)
+## 8. Caso Real 2: O Teste da Premissa Falsa e a Abstenção Pericial (Decidir Não Responder ao Invés de Devanear)
+
+> **O Teste de Fogo de um Sistema de RAG:** Como o agente se comporta diante de uma **pergunta investigativa com premissa falsa**, cuja resposta **NÃO EXISTE** nos autos documentais?
+
+### 8.1 A Pergunta com Premissa Falsa
+O usuário inseriu no terminal interativo:
+> *"quais multas tiveram que ser pagas no fim do processo ?"*
+
+### 8.2 A Realidade Jurídica do Caso Antitruste
+* **Bifurcação Processual:** A sentença federal de 286 páginas (Doc 1033) é estritamente sobre **Mérito e Culpa (*Liability Phase*)**. A discussão sobre remédios estruturais e sanções (*Remedies Phase*) ocorre posteriormente no Doc 1062.
+* **Inexistência de Multas Financeiras:** O Departamento de Justiça dos EUA (DOJ) em ações civis da Seção 2 da Lei Sherman **não busca multas monetárias punitivas** (diferente da Comissão Europeia). O DOJ busca **Remédios Estruturais e Comportamentais** (quebra de contratos de exclusividade com Apple/Samsung, compartilhamento de índices e potencial desmembramento do Chrome/Android).
+* **Conclusão:** **Não existe nenhuma multa paga mencionada na sentença do Doc 1033!**
+
+### 8.3 O Comportamento de um "ChatGPT Ingênuo" vs. Nosso Sistema
+Um RAG ingênuo teria caído na tentação de "adivinhar": teria inventado um valor financeiro fictício ou confundido os US$ 20 bilhões do contrato comercial de divisão de receita com a Apple (ISA) como se fossem "multa judicial".
+
+Vejam o fluxo exato que a nossa arquitetura executou, com proteção anti-loop e abstenção elegante:
+
+```text
+[NO: RETRIEVE] (Busca 1) ──► [GRADE_DOCS] (Aprova 1 chunk de MADA)
+        │
+        ▼
+[NO: GENERATE] ──► Tentativa 1 ──► [AUDITOR: ALUCINACAO] ──► DLQ Log
+        │
+        ▼
+[NO: GENERATE] ──► Tentativa 2 ──► [AUDITOR: ALUCINACAO] ──► DLQ Log
+        │
+        ▼
+[ESCAPE INTELIGENTE] Chunks insuficientes ──► [NO: REWRITE_QUERY] (Ciclo 1/3)
+        │
+        ▼
+[NO: RETRIEVE] (Busca 2) ──► [NO: GENERATE] (2 tentativas barradas) ──► DLQ Log
+        │
+        ▼
+[ESCAPE INTELIGENTE] ──► [NO: REWRITE_QUERY] (Ciclo 2/3)
+        │
+        ▼
+[NO: RETRIEVE] (Busca 3) ──► [NO: GENERATE] (2 tentativas barradas) ──► DLQ Log
+        │
+        ▼
+[ESCAPE INTELIGENTE] ──► [NO: REWRITE_QUERY] (Ciclo 3/3)
+        │
+        ▼
+[NO: RETRIEVE] (Busca 4) ──► [NO: GENERATE] (Barrado pelo Auditor) ──► DLQ Log
+        │
+        ▼
+[ORÇAMENTO ESGOTADO (3/3)] ──► Roteando para FALLBACK (Abstenção)
+        │
+        ▼
+[NO: FALLBACK] Emite parecer pericial formal e encerra em END com 0% alucinação!
+```
+
+### 8.4 O Registro Real do Terminal (Trace Completo)
+
+```text
+Pergunta Investigativa (ou 'sair'): quais multas tiveram que ser pagas no fim do processo ?
+
+=== INICIANDO EXECUCAO DO GRAFO ===
+
+[NO: RETRIEVE] Executando busca vetorial para: 'quais multas tiveram que ser pagas no fim do processo ?'
+[GOLD] Vector Lake operacional com 821 vetores indexados em: chroma_db
+[NO: RETRIEVE] 4 chunks extraidos da camada Gold.
+>>> No Concluido: retrieve
+
+[NO: GRADE_DOCS] Validando qualidade de 4 chunks em lote...
+    [Batch Grader] Trechos aprovados: [3] (O trecho [3] menciona a terminacao dos MADAs...)
+[DECISAO] Chunks aprovados (1). Roteando para -> GENERATE
+>>> No Concluido: grade_documents
+
+[NO: GENERATE] Sintetizando resposta baseada em 1 trechos aprovados...
+[AUDITORIA UNIFICADA DE QUALIDADE] Validando fidelidade factual e utilidade...
+    [Grounding: ALUCINACAO DETECTADA] [Utilidade: INSUFICIENTE]
+    Veredito do Auditor: A resposta gerada nao menciona nenhuma multa paga pelo Google, enquanto o contexto documental fornecido nao aborda esse topico...
+    [DLQ] Incidente de alucinacao arquivado com sucesso em: hallucination_incidents.jsonl
+    [!] Reprovado no Gate de Grounding (Tentativa 1) -> Retentando geracao com ancoragem reforcada.
+>>> No Concluido: generate
+
+[NO: GENERATE] Retentativa 2 (Reforco de Ancoragem Literal)...
+[AUDITORIA UNIFICADA DE QUALIDADE] Validando fidelidade factual e utilidade...
+    [Grounding: ALUCINACAO DETECTADA] [Utilidade: INSUFICIENTE]
+    [DLQ] Incidente de alucinacao arquivado com sucesso em: hallucination_incidents.jsonl
+    [!] Chunks atuais insuficientes para ancoragem factual sem alucinacao. Roteando para -> REWRITE_QUERY para buscar novas evidencias.
+>>> No Concluido: generate
+
+[NO: REWRITE_QUERY] Ciclo de Autocorrecao 1/3...
+    [->] Query Otimizada: 'What fines were imposed and paid by Google at the conclusion of the U.S. v. Google antitrust case, including details on the ISA and RSA agreements...'
+>>> No Concluido: rewrite_query
+
+[NO: RETRIEVE] Executando busca vetorial para a Query 1...
+[NO: GRADE_DOCS] Chunks aprovados (2). Roteando para -> GENERATE
+[NO: GENERATE] (2 tentativas barradas pelo Auditor com registro na DLQ)
+    [!] Chunks atuais insuficientes para ancoragem factual sem alucinacao. Roteando para -> REWRITE_QUERY para buscar novas evidencias.
+>>> No Concluido: generate
+
+[NO: REWRITE_QUERY] Ciclo de Autocorrecao 2/3...
+    [->] Query Otimizada: 'What fines were imposed and paid by Google... payments made by Google to Apple and Samsung as part of the settlement?'
+>>> No Concluido: rewrite_query
+
+[NO: RETRIEVE] Executando busca vetorial para a Query 2...
+[NO: GRADE_DOCS] Chunks aprovados (2). Roteando para -> GENERATE
+[NO: GENERATE] (2 tentativas barradas pelo Auditor com registro na DLQ)
+    [!] Chunks atuais insuficientes para ancoragem factual sem alucinacao. Roteando para -> REWRITE_QUERY para buscar novas evidencias.
+>>> No Concluido: generate
+
+[NO: REWRITE_QUERY] Ciclo de Autocorrecao 3/3...
+    [->] Query Otimizada: 'What fines were imposed and paid as a result of the U.S. v. Google (Doc 1033) decision... mentioned in the testimonies of Satya Nadella, Sundar Pichai, and Eddy Cue?'
+>>> No Concluido: rewrite_query
+
+[NO: RETRIEVE] Executando busca vetorial para a Query 3...
+[NO: GRADE_DOCS] Chunks aprovados (2). Roteando para -> GENERATE
+[NO: GENERATE] Sintetizando resposta baseada em 2 trechos aprovados...
+[AUDITORIA UNIFICADA DE QUALIDADE] Validando fidelidade factual e utilidade...
+    [Grounding: ALUCINACAO DETECTADA] [Utilidade: INSUFICIENTE]
+    Veredito do Auditor: A resposta nao se alinha com o contexto fornecido, pois o documento nao menciona explicitamente multas pagas por Google...
+    [DLQ] Incidente de alucinacao arquivado com sucesso em: hallucination_incidents.jsonl
+    [!] Limite de retentativas do DAG esgotado sem ancoragem -> Roteando para FALLBACK (Abstencao).
+>>> No Concluido: generate
+
+[NO: FALLBACK] Aplicando abstencao pericial para evitar propagacao de alucinacao...
+>>> No Concluido: fallback
+
+============================================================
+╭─────────────────────────────────────────────── Resposta Auditada e Fundamentada ───────────────────────────────────────────────╮
+│ Com base estritamente nos trechos documentais analisados da Sentenca Judicial (Paginas 276, 281), as evidencias recuperadas    │
+│ nao contem dados suficientes para responder a questao com certeza factual absoluta sem recorrer a inferencias externas. Em     │
+│ conformidade com o protocolo pericial antitruste, a resposta foi suspensa para evitar alucinacoes. Recomenda-se refinar a      │
+│ pergunta com termos judiciais mais especificos.                                                                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+Paginas citadas da Sentenca: 276, 281
+============================================================
+```
+
+### 8.5 A Lição de Engenharia: A Superioridade da Abstenção Elegante
+Em sistemas críticos (judiciais, médicos ou de crédito), **decidir não responder quando não há dados é a métrica definitiva de segurança**:
+1. O grafo buscou exaustivamente por **4 buscas** e **3 reformulações semânticas** diferentes.
+2. O mecanismo anti-loop permitiu **exatamente 2 tentativas por conjunto de chunks**, evitando travamentos.
+3. O auditor adversarial barrou **7 tentativas consecutivas** de tentar inventar ou amenizar fatos, registrando cada uma na DLQ.
+4. Quando o orçamento de 3 ciclos se esgotou, o nó `fallback` assumiu com segurança, entregando **0% de alucinação**.
+
+---
+
+## 9. O Ciclo do Data Flywheel (DPO / Fine-Tuning)
 
 Essa estrutura de Dead-Letter Queue fecha o ciclo contínuo de aprendizado de máquina corporativo:
 
@@ -288,7 +429,7 @@ flowchart LR
 
 ---
 
-## 9. Comparativo de Maturidade
+## 10. Comparativo de Maturidade
 
 | Critério | RAG Tradicional (Tutoriais Comuns) | Nossa Arquitetura Pericial (LangGraph + DLQ) |
 | :--- | :--- | :--- |
@@ -301,7 +442,7 @@ flowchart LR
 
 ---
 
-## 10. Conclusão
+## 11. Conclusão
 
 Este estudo de caso comprova que **a inteligência de um sistema moderno não reside apenas nos parâmetros brutos de um modelo fundacional, mas na integridade da engenharia de dados que o orquestra**. 
 
@@ -309,7 +450,7 @@ Ao combinar **LangGraph para autocura em tempo de execução**, **Dead-Letter Qu
 
 ---
 
-## 11. 🎙️ Roteiro de Apresentação (Pitch Técnico & Storytelling para Demonstrações)
+## 12. 🎙️ Roteiro de Apresentação (Pitch Técnico & Storytelling para Demonstrações)
 
 > **Dica de Apresentação:** Use este roteiro de 5 atos para conduzir reuniões técnicas, entrevistas ou demonstrações executivas. Ele foi construído no formato de **jornada de engenharia**, mostrando como você lidou com problemas reais de produção em vez de apresentar um caso teórico perfeito.
 
