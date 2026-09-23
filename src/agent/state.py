@@ -1,6 +1,6 @@
 """
-Contrato de Dados e Estado do Agente (State Schema).
-Define o contrato tipado que transita entre todos os nos do DAG no LangGraph.
+Agent State Schema (Data Contract).
+Defines the typed contract passed between all nodes of the LangGraph DAG.
 """
 
 from typing import List, Optional
@@ -10,21 +10,21 @@ from langchain_core.documents import Document
 
 class AgentState(TypedDict):
     """
-    Contrato de Estado Unificado do LangGraph.
-    Garante a rastreabilidade e integridade dos dados durante as transicoes de estado.
+    Unified LangGraph state contract.
+    Ensures data traceability and integrity across state transitions.
     """
-    question: str                         # Pergunta original submetida pelo usuario
-    current_query: str                    # Query ativa usada para busca vetorial (otimizada)
-    documents: List[Document]             # Colecao de chunks da camada Gold aprovados pelo grader
-    generation: str                       # Resposta sintetizada pelo LLM
-    generation_attempts: int              # Contador de geracoes consecutivas no mesmo conjunto de chunks
-    retry_count: int                      # Contador de ciclos de autocorrecao
-    max_retries: int                      # Limite maximo de retroalimentacoes no DAG
-    web_search_needed: bool               # Flag indicando necessidade de busca externa complementar
-    hallucination_verdict: Optional[str]  # "grounded" (fiel) ou "hallucinated" (alucinou)
-    answer_verdict: Optional[str]         # "useful" (respondeu) ou "not_useful" (insuficiente)
-    citations: List[str]                  # Linhagem de paginas comprovadas da sentenca
-    as_of_date: Optional[str]             # Data limite Point-in-Time YYYY-MM-DD (Anti-Lookahead Bias)
-    milestone_title: Optional[str]        # Titulo do marco processual em vigor
+    question: str                         # Original question submitted by the user
+    current_query: str                    # Active (optimized) query used for vector search
+    documents: List[Document]             # Gold-layer chunks approved by the grader
+    generation: str                       # Answer synthesized by the LLM
+    generation_attempts: int              # Consecutive generations on the same chunk set
+    retry_count: int                      # Self-correction cycle counter
+    max_retries: int                      # Maximum number of feedback loops in the DAG
+    web_search_needed: bool               # Whether a complementary external search is needed
+    hallucination_verdict: Optional[str]  # "grounded" (faithful) or "hallucinated"
+    answer_verdict: Optional[str]         # "useful" (answered) or "not_useful" (insufficient)
+    citations: List[str]                  # Lineage of supporting opinion pages
+    as_of_date: Optional[str]             # Point-in-Time cutoff date YYYY-MM-DD (anti-lookahead bias)
+    milestone_title: Optional[str]        # Title of the procedural milestone in effect
 
 

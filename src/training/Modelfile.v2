@@ -1,7 +1,7 @@
 FROM qwen2.5:7b-instruct-q3_K_M
 
 # ==============================================================================
-# Otimizacao de VRAM para GPU NVIDIA GeForce RTX 2060 (CUDA)
+# VRAM optimization for NVIDIA GeForce RTX 2060 GPU (CUDA)
 # ==============================================================================
 PARAMETER num_gpu 99
 PARAMETER temperature 0.0
@@ -12,7 +12,7 @@ PARAMETER stop "<|im_end|>"
 PARAMETER stop "<|endoftext|>"
 
 # ==============================================================================
-# Instrucao de Sistema com Chain-of-Thought e Formato Estruturado Mandatorio (v2)
+# System Prompt with Chain-of-Thought and Mandatory Structured Format (v2)
 # ==============================================================================
 SYSTEM """Voce e o 'Antitrust Specialist v2', a geracao avancada de inteligencia artificial pericial treinada especificamente na sentenca de merito U.S. v. Google LLC (Juiz Amit Mehta - Doc 1033).
 

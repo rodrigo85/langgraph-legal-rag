@@ -1,15 +1,18 @@
 """
-Benchmark de 3 Geracoes de Evolucao de IA (Geracao 0 vs Geracao 1 vs Geracao 2).
-Comprova matematicamente e qualitativamente a progressao de maturidade:
-- Geracao 0: Modelo Base sem treino (Qwen 7B)
-- Geracao 1: SFT Basico (antitrust-specialist)
-- Geracao 2: CoT & Augmented Specialist (antitrust-specialist-v2)
+3-Generation Benchmark (Generation 0 vs Generation 1 vs Generation 2).
+Compares three configurations of the SAME base model (no weight fine-tuning):
+- Generation 0: base model (qwen2.5:7b-instruct-q3_K_M)
+- Generation 1: Modelfile v1 - domain system prompt (antitrust-specialist)
+- Generation 2: Modelfile v2 - structured Evidence/Analysis/Conclusion prompt (antitrust-specialist-v2)
+
+Heuristic score: presence of a [Pag. N] citation, coverage of expected terms and
+sectioned structure. Citations are checked for FORMAT only, not page validity
+(the test context has no page numbers).
 """
 
 import sys
 import time
 import re
-import json
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -24,7 +27,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from langchain_ollama import ChatOllama
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 
 from src.config import OLLAMA_BASE_URL
 
@@ -73,6 +76,7 @@ def query_model(model_name: str, prompt: str) -> Dict[str, Any]:
     latency = time.time() - start_time
     content = response.content
 
+    # Rough estimate: ~1.3 tokens per whitespace-separated word
     tokens = len(content.split()) * 1.3
     tps = tokens / latency if latency > 0 else 0
 
@@ -84,16 +88,16 @@ def query_model(model_name: str, prompt: str) -> Dict[str, Any]:
 
 
 def evaluate_scores(text: str, expected_terms: List[str]) -> Dict[str, Any]:
-    # 1. Checagem de Citação Formal de Página: [Pag. X] ou [Pág. X]
+    # 1. Page citation in the required format: [Pag. N] or [Pág. N] (format only, not validity)
     has_citation = bool(re.search(r"\[P[aá]g\.?\s*\d+[^\]]*\]", text, re.IGNORECASE))
     citation_score = 100 if has_citation else 10
 
-    # 2. Densidade de Jargão Jurídico
+    # 2. Coverage of expected domain terms
     text_lower = text.lower()
     matches = sum(1 for term in expected_terms if term.lower() in text_lower)
     term_score = int((matches / len(expected_terms)) * 100)
 
-    # 3. Estruturação Formal (Seções)
+    # 3. Sectioned structure
     has_sections = ("###" in text) or ("**" in text and ":" in text)
     struct_score = 100 if has_sections else 40
 
@@ -111,28 +115,28 @@ def evaluate_scores(text: str, expected_terms: List[str]) -> Dict[str, Any]:
 def run_3_generations_benchmark():
     console.print(
         Panel.fit(
-            "[bold cyan]BENCHMARK DE 3 GERACOES: PROGRESSAO DE INTELIGENCIA DE IA[/bold cyan]\n"
-            "[white]Gen 0: Modelo Base (Untrained) | Gen 1: SFT Basico | Gen 2: CoT & Augmented\n"
-            "Hardware: NVIDIA GeForce RTX 2060 (VRAM Total Offload)[/white]",
+            "[bold cyan]3-GENERATION BENCHMARK: SAME BASE MODEL, DIFFERENT MODELFILES[/bold cyan]\n"
+            "[white]Gen 0: Base model | Gen 1: Modelfile v1 | Gen 2: Modelfile v2 (structured prompt)\n"
+            "Hardware: NVIDIA GeForce RTX 2060 (full VRAM offload)[/white]",
             border_style="cyan"
         )
     )
 
     models = [
         {"name": "qwen2.5:7b-instruct-q3_K_M", "label": "Gen 0: Base", "key": "gen0"},
-        {"name": "antitrust-specialist", "label": "Gen 1: SFT v1", "key": "gen1"},
-        {"name": "antitrust-specialist-v2", "label": "Gen 2: CoT v2", "key": "gen2"},
+        {"name": "antitrust-specialist", "label": "Gen 1: Modelfile v1", "key": "gen1"},
+        {"name": "antitrust-specialist-v2", "label": "Gen 2: Modelfile v2", "key": "gen2"},
     ]
 
     all_results = []
-    
-    table = Table(title="Scorecard Comparativo de 3 Geracoes de IA", border_style="bright_blue")
-    table.add_column("Cenario", style="cyan")
+
+    table = Table(title="3-Generation Scorecard", border_style="bright_blue")
+    table.add_column("Scenario", style="cyan")
     table.add_column("Gen 0 (Base)", style="yellow")
-    table.add_column("Gen 1 (SFT v1)", style="magenta")
-    table.add_column("Gen 2 (CoT v2)", style="green")
-    table.add_column("Linhagem Gen 2", style="bold green")
-    table.add_column("Evolucao Total", style="bold blue")
+    table.add_column("Gen 1 (Modelfile v1)", style="magenta")
+    table.add_column("Gen 2 (Modelfile v2)", style="green")
+    table.add_column("Gen 2 Citation (format)", style="bold green")
+    table.add_column("Total Gain", style="bold blue")
 
     for case in TEST_PROMPTS:
         c_id = case["id"]
@@ -141,12 +145,12 @@ def run_3_generations_benchmark():
         terms = case["expected_terms"]
         prompt = f"Contexto probatorio dos autos judiciais:\n{ctx}\n\nPergunta investigativa:\n{q}"
 
-        console.print(f"\n[bold]Testando {c_id}:[/bold] '{q[:65]}...'")
+        console.print(f"\n[bold]Testing {c_id}:[/bold] '{q[:65]}...'")
 
         case_data = {"id": c_id, "question": q}
 
         for m in models:
-            console.print(f"  [dim]-> Executando {m['label']}...[/dim]")
+            console.print(f"  [dim]-> Running {m['label']}...[/dim]")
             out = query_model(m["name"], prompt)
             ev = evaluate_scores(out["text"], terms)
             case_data[m["key"]] = {
@@ -163,8 +167,8 @@ def run_3_generations_benchmark():
             f"{case_data['gen0']['score']}/100",
             f"{case_data['gen1']['score']}/100",
             f"{case_data['gen2']['score']}/100",
-            "Sim (100%)" if case_data["gen2"]["has_citation"] else "Nao",
-            f"+{total_gain} pts",
+            "Yes" if case_data["gen2"]["has_citation"] else "No",
+            f"{total_gain:+d} pts",
         )
 
         all_results.append(case_data)
@@ -172,7 +176,7 @@ def run_3_generations_benchmark():
     console.print("\n")
     console.print(table)
 
-    # Medias
+    # Averages
     avg_gen0 = sum(r["gen0"]["score"] for r in all_results) / len(all_results)
     avg_gen1 = sum(r["gen1"]["score"] for r in all_results) / len(all_results)
     avg_gen2 = sum(r["gen2"]["score"] for r in all_results) / len(all_results)
@@ -188,47 +192,47 @@ def run_3_generations_benchmark():
 def generate_3gen_svg(g0: float, g1: float, g2: float):
     width = 750
     height = 360
-    
+
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="100%">
   <rect width="{width}" height="{height}" fill="#0d1117" rx="10"/>
-  
+
   <text x="{width/2}" y="36" fill="#58a6ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="16" font-weight="bold" text-anchor="middle">
-    Progressao de Inteligencia por Geracoes de IA (Benchmark de Dominio)
+    Heuristic Score by Model Configuration (4 domain scenarios)
   </text>
   <text x="{width/2}" y="56" fill="#8b949e" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="12" text-anchor="middle">
-    NVIDIA GeForce RTX 2060 | Avaliacao Cega de Precisao Forense, Jargao e Linhagem
+    Same base model (Qwen 2.5 7B) | [Pag. N] citation format + expected terms + structure
   </text>
 
-  <!-- Barras Horizontais Comparativas -->
   <!-- Gen 0: Base -->
-  <text x="80" y="115" fill="#e6edf3" font-size="13" font-weight="bold">Geracao 0: Modelo Base (Qwen 7B Cru)</text>
+  <text x="80" y="115" fill="#e6edf3" font-size="13" font-weight="bold">Generation 0: Base model (Qwen 2.5 7B)</text>
   <rect x="80" y="125" width="450" height="32" fill="#21262d" rx="6"/>
   <rect x="80" y="125" width="{g0 * 4.5:.1f}" height="32" fill="#d29922" rx="6"/>
   <text x="{80 + g0 * 4.5 + 15}" y="146" fill="#d29922" font-size="14" font-weight="bold">{g0:.1f} / 100</text>
 
-  <!-- Gen 1: SFT v1 -->
-  <text x="80" y="195" fill="#e6edf3" font-size="13" font-weight="bold">Geracao 1: SFT Basico (antitrust-specialist)</text>
+  <!-- Gen 1: Modelfile v1 -->
+  <text x="80" y="195" fill="#e6edf3" font-size="13" font-weight="bold">Generation 1: Modelfile v1 - domain prompt (antitrust-specialist)</text>
   <rect x="80" y="205" width="450" height="32" fill="#21262d" rx="6"/>
   <rect x="80" y="205" width="{g1 * 4.5:.1f}" height="32" fill="#a371f7" rx="6"/>
-  <text x="{80 + g1 * 4.5 + 15}" y="226" fill="#a371f7" font-size="14" font-weight="bold">{g1:.1f} / 100 (+{(g1-g0):.1f})</text>
+  <text x="{80 + g1 * 4.5 + 15}" y="226" fill="#a371f7" font-size="14" font-weight="bold">{g1:.1f} / 100 ({(g1-g0):+.1f})</text>
 
-  <!-- Gen 2: CoT & Augmented v2 -->
-  <text x="80" y="275" fill="#e6edf3" font-size="13" font-weight="bold">Geracao 2: CoT &amp; Data Augmentation v2 (antitrust-specialist-v2)</text>
+  <!-- Gen 2: Modelfile v2 -->
+  <text x="80" y="275" fill="#e6edf3" font-size="13" font-weight="bold">Generation 2: Modelfile v2 - structured prompt (antitrust-specialist-v2)</text>
   <rect x="80" y="285" width="450" height="32" fill="#21262d" rx="6"/>
   <rect x="80" y="285" width="{g2 * 4.5:.1f}" height="32" fill="#2ea043" rx="6"/>
-  <text x="{80 + g2 * 4.5 + 15}" y="306" fill="#2ea043" font-size="14" font-weight="bold">{g2:.1f} / 100 (+{(g2-g0):.1f})</text>
+  <text x="{80 + g2 * 4.5 + 15}" y="306" fill="#2ea043" font-size="14" font-weight="bold">{g2:.1f} / 100 ({(g2-g0):+.1f})</text>
 </svg>"""
 
     with open(CHART_3GEN_SVG, "w", encoding="utf-8") as f:
         f.write(svg)
-    print(f"[OK] Grafico SVG de 3 geracoes gerado em: {CHART_3GEN_SVG.name}")
+    print(f"[OK] 3-generation SVG chart written to: {CHART_3GEN_SVG.name}")
 
 
 def update_reports_markdown(all_results, g0, g1, g2, c0, c1, c2):
     rows_md = []
     for r in all_results:
         gain = r["gen2"]["score"] - r["gen0"]["score"]
-        rows_md.append(f"| **{r['id']}** | {r['gen0']['score']}/100 | {r['gen1']['score']}/100 | **{r['gen2']['score']}/100** | **Sim (100%)** | **+{gain} pts** |")
+        cited = "Sim" if r["gen2"]["has_citation"] else "Não"
+        rows_md.append(f"| **{r['id']}** | {r['gen0']['score']}/100 | {r['gen1']['score']}/100 | **{r['gen2']['score']}/100** | {cited} | **{gain:+d} pts** |")
 
     deep_dives = []
     for r in all_results:
@@ -237,75 +241,75 @@ def update_reports_markdown(all_results, g0, g1, g2, c0, c1, c2):
 **Pergunta:** *{r['question']}*
 
 <details>
-<summary><b>Evolução das Respostas em 3 Gerações (Clique para expandir)</b></summary>
+<summary><b>Respostas das 3 configurações (clique para expandir)</b></summary>
 
 #### 🔴 Geração 0: Modelo Base (Nota {r['gen0']['score']}/100)
 > {r['gen0']['text']}
 
-#### 🟣 Geração 1: SFT Inicial (Nota {r['gen1']['score']}/100)
+#### 🟣 Geração 1: Modelfile v1 (Nota {r['gen1']['score']}/100)
 > {r['gen1']['text']}
 
-#### 🟢 Geração 2: CoT & Augmented Specialist (Nota {r['gen2']['score']}/100)
+#### 🟢 Geração 2: Modelfile v2 (Nota {r['gen2']['score']}/100)
 > {r['gen2']['text']}
 
 **Auditoria:**
-- Linhagem na Gen 2: **100% de Citação Rastreável**
-- Evolução Total: **+{r['gen2']['score'] - r['gen0']['score']} pontos**
+- Citação no formato `[Pág. N]` na Gen 2: **{'Sim' if r['gen2']['has_citation'] else 'Não'}** (formato, não validade da página)
+- Evolução total: **{r['gen2']['score'] - r['gen0']['score']:+d} pontos**
 </details>
 """)
 
-    report_text = f"""# 📈 Relatório de Evolução de Inteligência: 3 Gerações de IA
-### *U.S. v. Google LLC Antitrust LLM Specialist (NVIDIA GeForce RTX 2060)*
+    report_text = f"""# 📈 Relatório de Evolução: 3 Configurações do Mesmo Modelo Base
+### *U.S. v. Google LLC — Especialização de Domínio via Modelfile (Ollama, RTX 2060)*
 
-Este relatório documenta a **trajetória de engenharia de IA e maturidade contínua** através de 3 iterações estruturadas:
-1. **Geração 0 (Baseline)**: Modelo pré-treinado cru (`Qwen 2.5 7B`).
-2. **Geração 1 (SFT Básico)**: Ajuste supervisionado inicial (`antitrust-specialist`).
-3. **Geração 2 (CoT & Data Augmentation)**: Modelo com raciocínio guiado, aumento sintético de 150+ amostras e estrutura probatória mandatória (`antitrust-specialist-v2`).
+Este relatório compara **três configurações do mesmo modelo base** (`qwen2.5:7b-instruct-q3_K_M`). **Não houve ajuste de pesos (fine-tuning)**: a especialização é feita por *system prompt* e parâmetros de inferência definidos em Modelfiles do Ollama.
+
+1. **Geração 0 (Baseline)**: modelo base, sem system prompt.
+2. **Geração 1 (Modelfile v1)**: system prompt de domínio exigindo citação `[Pág. N]` (`antitrust-specialist`).
+3. **Geração 2 (Modelfile v2)**: prompt estruturado em Evidência / Análise / Conclusão, temperatura 0 (`antitrust-specialist-v2`).
 
 ---
 
-## 📊 1. Quadro Comparativo de Desempenho
+## 📊 1. Quadro Comparativo
 
-| Métrica de Avaliação | Geração 0 (Base) | Geração 1 (SFT v1) | Geração 2 (CoT v2) | Ganho Total Acumulado |
+| Métrica | Geração 0 (Base) | Geração 1 (Modelfile v1) | Geração 2 (Modelfile v2) | Ganho Total |
 | :--- | :---: | :---: | :---: | :---: |
-| **Pontuação Média de Inteligência** | **{g0:.1f} pts** | **{g1:.1f} pts** | **{g2:.1f} pts** | **+{(g2 - g0):.1f} pontos (+{((g2 - g0)/g0)*100:.1f}%)** |
-| **Conformidade de Citação (`[Pág. X]`)** | **{c0:.0f}%** | **{c1:.0f}%** | **{c2:.0f}%** | **+{c2 - c0:.0f}% de Adesão Estrita** |
-| **Perplexidade Preditiva** | **17.20** | **1.77** | **1.14** | **-93.4% de Incerteza** |
-| **Velocidade de Geração na GPU** | N/A | ~24 t/s | **~25-32 t/s** | **Aceleração VRAM Total (RTX 2060)** |
+| **Score heurístico médio (0-100)** | **{g0:.1f} pts** | **{g1:.1f} pts** | **{g2:.1f} pts** | **{(g2 - g0):+.1f} pontos ({((g2 - g0)/g0)*100:+.1f}%)** |
+| **Respostas com citação no formato `[Pág. N]`** | **{c0:.0f}%** | **{c1:.0f}%** | **{c2:.0f}%** | **{c2 - c0:+.0f} p.p.** |
+
+> **Como o score é calculado:** 40% presença de citação no formato `[Pág. N]`, 40% cobertura de termos esperados, 20% estrutura em seções. Amostra de 4 cenários, temperatura 0.
 
 ---
 
-## 📉 2. Gráfico Visual de Progressão de Inteligência
+## 📉 2. Gráfico
 
-![Progressão de Inteligência por Gerações](./evolution_3_generations.svg)
+![Score por configuração](./evolution_3_generations.svg)
 
 ---
 
-## 📋 3. Scorecard Detalhado por Cenário de Teste
+## 📋 3. Scorecard por Cenário
 
-| Cenário de Teste | Gen 0 (Base) | Gen 1 (SFT v1) | Gen 2 (CoT v2) | Citação Gen 2 | Ganho Acumulado |
+| Cenário de Teste | Gen 0 (Base) | Gen 1 (Modelfile v1) | Gen 2 (Modelfile v2) | Citação Gen 2 (formato) | Ganho |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 {chr(10).join(rows_md)}
 
 ---
 
-## 🔬 4. Análise Qualitativa Comparativa (Deep Dive)
+## 🔬 4. Análise Qualitativa (Deep Dive)
 
 {chr(10).join(deep_dives)}
 
 ---
 
-## 🏆 Conclusão para Portfólio de Engenharia de Dados & IA
+## ⚠️ Limitações Conhecidas
 
-A progressão comprovou o ciclo de excelência de um Engenheiro de IA:
-1. **Diagnóstico da Geração 1**: O modelo havia aprendido o jargão, mas ainda falhava em ancorar a citação formal em 50% dos casos.
-2. **Solução de Dados (Data-Centric AI)**: Criamos um pipeline de aumento sintético com 152 amostras adicionais incorporando **Chain-of-Thought** e pares de preferência DPO.
-3. **Resultado na Geração 2**: O modelo alcançou **{g2:.1f}/100 de pontuação**, **{c2:.0f}% de conformidade em citações judiciais** e respostas com separação cirúrgica entre Fato, Análise e Conclusão.
+1. **Citação checada no formato, não na validade**: o contexto fornecido nos testes não contém números de página, portanto os números citados pelos modelos são inventados. O ganho mede **aderência ao formato exigido pelo prompt**, não precisão de linhagem. A linhagem real de páginas é garantida no agente RAG (metadados de página dos chunks), não neste benchmark.
+2. **Amostra pequena** (4 cenários) e score heurístico baseado em palavras-chave.
+3. **Sem ajuste de pesos**: os datasets SFT/CoT/DPO em `data/training/` estão preparados para um fine-tuning LoRA futuro, ainda não executado.
 """
 
     with open(REPORT_MD_FILE, "w", encoding="utf-8") as f:
         f.write(report_text)
-    print(f"[OK] Relatorio de 3 geracoes atualizado em: {REPORT_MD_FILE.name}!")
+    print(f"[OK] 3-generation report updated at: {REPORT_MD_FILE.name}")
 
 
 if __name__ == "__main__":

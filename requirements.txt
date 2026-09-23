@@ -1,20 +1,18 @@
-# Frameworks de Agentes e Grafos
-langgraph>=0.2.20
-langchain>=0.3.0
-langchain-core>=0.3.0
-langchain-community>=0.3.0
-langchain-ollama>=0.2.0
+# Agent orchestration
+langgraph==1.2.12
+langchain-core==1.6.4
+langchain-ollama==1.1.0
+langchain-text-splitters==1.1.2
 
-# Vector Store e Embeddings
-chromadb>=0.5.5
+# Vector store
+langchain-chroma==1.1.0
+chromadb==1.5.9
 
-# Processamento de Documentos e PDFs
-pypdf>=4.3.0
-pymupdf>=1.24.9
+# Document processing
+pypdf==6.19.0
 
-# Utilitários e Requisições
-requests>=2.32.0
-pydantic>=2.8.0
-python-dotenv>=1.0.1
-rich>=13.8.0
-tqdm>=4.66.5
+# Utilities
+pydantic==2.13.5
+python-dotenv==1.2.3
+rich==15.0.0
+typing_extensions==4.16.0

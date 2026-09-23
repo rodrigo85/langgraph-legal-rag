@@ -1,6 +1,6 @@
 """
-Nos de Execucao do DAG (LangGraph Nodes).
-Cada no representa uma etapa deterministica de processamento, filtragem ou geracao.
+DAG Execution Nodes (LangGraph Nodes).
+Each node is a deterministic processing, filtering, or generation step.
 """
 
 import sys
@@ -22,34 +22,34 @@ from src.chains.generator import create_generator
 
 def retrieve_node(state: AgentState) -> Dict[str, Any]:
     """
-    No 1: Recuperacao Vetorial (Gold Layer Query).
-    Executa busca por similaridade semantica no ChromaDB para a query corrente,
-    respeitando o filtro de data (as_of_date) para prevencao de Lookahead Bias.
+    Node 1: Vector Retrieval (Gold Layer Query).
+    Runs a semantic similarity search in ChromaDB for the current query,
+    honoring the as_of_date filter to prevent lookahead bias.
     """
     query = state.get("current_query") or state["question"]
     as_of_date = state.get("as_of_date")
     
     if as_of_date:
-        print(f"\n[NO: RETRIEVE] Executando busca vetorial Point-in-Time (as_of={as_of_date}) para: '{query}'")
+        print(f"\n[NODE: RETRIEVE] Running Point-in-Time vector search (as_of={as_of_date}) for: '{query}'")
         retriever = get_temporal_retriever(as_of_date=as_of_date, k=TOP_K_DOCUMENTS)
     else:
-        print(f"\n[NO: RETRIEVE] Executando busca vetorial para: '{query}'")
+        print(f"\n[NODE: RETRIEVE] Running vector search for: '{query}'")
         vector_store = load_or_build_gold_vectorstore()
         retriever = vector_store.as_retriever(search_kwargs={"k": TOP_K_DOCUMENTS})
 
     docs = retriever.invoke(query)
-    print(f"[NO: RETRIEVE] {len(docs)} chunks extraidos da camada Gold.")
+    print(f"[NODE: RETRIEVE] {len(docs)} chunks retrieved from the Gold layer.")
     return {"documents": docs}
 
 
 def grade_documents_node(state: AgentState) -> Dict[str, Any]:
     """
-    No 2: Data Quality Gate (Batch Document Relevance Grader).
-    Filtra ruído e chunks irrelevantes em UMA UNICA inferencia otimizada (4x mais rapido).
+    Node 2: Data Quality Gate (Batch Document Relevance Grader).
+    Filters out noise and irrelevant chunks in A SINGLE optimized inference (4x faster).
     """
     question = state["question"]
     documents = state.get("documents", [])
-    print(f"\n[NO: GRADE_DOCS] Validando qualidade de {len(documents)} chunks em lote...")
+    print(f"\n[NODE: GRADE_DOCS] Batch-grading quality of {len(documents)} chunks...")
     
     if not documents:
         return {"documents": []}
@@ -69,16 +69,16 @@ def grade_documents_node(state: AgentState) -> Dict[str, Any]:
         })
         relevant_indices = getattr(res, "relevant_indices", list(range(1, len(documents) + 1)))
         rationale = getattr(res, "rationale", "")
-        print(f"    [Batch Grader] Trechos aprovados: {relevant_indices} ({rationale})")
+        print(f"    [Batch Grader] Approved chunks: {relevant_indices} ({rationale})")
         
         filtered_docs = [
             doc for idx, doc in enumerate(documents, start=1)
             if idx in relevant_indices
         ]
         if not filtered_docs and documents:
-            print("    [Batch Grader] Nenhum trecho atendeu ao limiar estrito.")
+            print("    [Batch Grader] No chunk met the strict threshold.")
     except Exception as e:
-        print(f"    Fallback de seguranca ativado ({e}). Todos os chunks aprovados.")
+        print(f"    Safety fallback triggered ({e}). All chunks approved.")
         filtered_docs = documents
 
     return {"documents": filtered_docs}
@@ -86,22 +86,22 @@ def grade_documents_node(state: AgentState) -> Dict[str, Any]:
 
 def rewrite_query_node(state: AgentState) -> Dict[str, Any]:
     """
-    No 3: Query Optimization (Query Rewriter).
-    Aplica engenharia de termos para converter consultas informais em termos tecnicos contratuais.
+    Node 3: Query Optimization (Query Rewriter).
+    Rewrites informal queries into technical, contract-level terminology.
     """
     question = state["question"]
     retry_count = state.get("retry_count", 0) + 1
-    print(f"\n[NO: REWRITE_QUERY] Ciclo de Autocorrecao {retry_count}/{MAX_RETRIES}...")
+    print(f"\n[NODE: REWRITE_QUERY] Self-correction cycle {retry_count}/{MAX_RETRIES}...")
     
     rewriter = create_query_rewriter()
     try:
         res = rewriter.invoke({"question": question})
         improved_query = getattr(res, "improved_query", question)
         rationale = getattr(res, "rationale", "")
-        print(f"    [->] Query Otimizada: '{improved_query}'")
-        print(f"    [->] Rationale Tecnico: {rationale}")
+        print(f"    [->] Optimized query: '{improved_query}'")
+        print(f"    [->] Rationale: {rationale}")
     except Exception as e:
-        print(f"    Erro ao reescrever query: {e}. Aplicando expansao deterministica.")
+        print(f"    Query rewrite failed: {e}. Applying deterministic expansion.")
         improved_query = f"{question} Google Apple ISA search agreement antitrust"
 
     return {
@@ -113,21 +113,21 @@ def rewrite_query_node(state: AgentState) -> Dict[str, Any]:
 
 def generate_node(state: AgentState) -> Dict[str, Any]:
     """
-    No 4: Sintese Ancorada (Fact-Grounded Generation).
-    Gera a resposta estritamente ancorada com citacao mandatoria da linhagem de paginas.
+    Node 4: Fact-Grounded Generation.
+    Generates a strictly grounded answer with mandatory page-lineage citations.
     """
     question = state["question"]
     documents = state.get("documents", [])
     generation_attempts = state.get("generation_attempts", 0) + 1
     
     if generation_attempts > 1:
-        print(f"\n[NO: GENERATE] Retentativa {generation_attempts} (Reforco de Ancoragem Literal)...")
+        print(f"\n[NODE: GENERATE] Retry {generation_attempts} (reinforced literal grounding)...")
         effective_question = (
             f"{question} (ATENCAO: Seja estritamente literal ao texto fornecido. "
             "Se os fatos exatos nao constarem expressamente nos trechos, afirme que a evidencia e inconclusiva.)"
         )
     else:
-        print(f"\n[NO: GENERATE] Sintetizando resposta baseada em {len(documents)} trechos aprovados...")
+        print(f"\n[NODE: GENERATE] Synthesizing answer from {len(documents)} approved chunks...")
         effective_question = question
     
     formatted_context_parts = []
@@ -153,11 +153,11 @@ def generate_node(state: AgentState) -> Dict[str, Any]:
 
 def fallback_node(state: AgentState) -> Dict[str, Any]:
     """
-    No 5: Abstencao Pericial Elegante (Graceful Degradation).
-    Acionado quando as retentativas do DAG se esgotam sem atingir ancoragem factual 100%.
-    Garante que nenhuma alucinacao seja entregue ao usuario final.
+    Node 5: Graceful Abstention (Graceful Degradation).
+    Triggered when DAG retries are exhausted without reaching 100% factual grounding.
+    Ensures no hallucination is delivered to the end user.
     """
-    print("\n[NO: FALLBACK] Aplicando abstencao pericial para evitar propagacao de alucinacao...")
+    print("\n[NODE: FALLBACK] Abstaining to prevent hallucination from propagating...")
     documents = state.get("documents", [])
     pages = sorted(list(set([str(d.metadata.get("page", "?")) for d in documents])))
     pages_str = ", ".join(pages) if pages else "N/A"

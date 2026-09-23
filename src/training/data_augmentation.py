@@ -1,9 +1,9 @@
 """
 Data Augmentation & Chain-of-Thought (CoT) Synthesis Pipeline.
-Varre as 286 paginas da camada Silver para sintetizar:
-1. Pares de treino com Raciocinio Forense Explicito (<pensamento_forense>)
-2. Perguntas multi-hop cruzando multiplas fontes (Apple, Microsoft, Google, Samsung)
-3. Dataset de Preferencias DPO (Chosen vs. Rejected).
+Scans the Silver-layer pages to synthesize:
+1. Samples with explicit forensic reasoning (<pensamento_forense>)
+2. DPO preference dataset (Chosen vs. Rejected).
+These datasets are prepared for a future LoRA fine-tune; no model weights have been trained on them.
 """
 
 import sys
@@ -24,9 +24,9 @@ DPO_PREF_FILE = TRAINING_DIR / "preference_dataset.jsonl"
 
 
 def load_silver_pages() -> List[Dict[str, Any]]:
-    """Carrega as paginas da camada Silver estruturada."""
+    """Loads the structured Silver-layer pages."""
     if not SILVER_CORPUS_JSONL.exists():
-        raise FileNotFoundError(f"Arquivo Silver nao encontrado em: {SILVER_CORPUS_JSONL}")
+        raise FileNotFoundError(f"Silver file not found at: {SILVER_CORPUS_JSONL}")
 
     records = []
     with open(SILVER_CORPUS_JSONL, "r", encoding="utf-8") as f:
@@ -38,15 +38,15 @@ def load_silver_pages() -> List[Dict[str, Any]]:
 
 def build_cot_dataset():
     """
-    Sintetiza 150+ amostras com Chain-of-Thought (CoT) forense e citacao estruturada.
+    Synthesizes 150+ samples with forensic Chain-of-Thought (CoT) and structured citations.
     """
-    print(f"[*] Iniciando sintese de dados com Chain-of-Thought (CoT)...")
+    print(f"[*] Starting Chain-of-Thought (CoT) data synthesis...")
     pages = load_silver_pages()
 
     cot_samples = []
     dpo_samples = []
 
-    # Exemplares de ouro com CoT refinado
+    # Golden examples with refined CoT
     golden_cot_scenarios = [
         {
             "query": "Qual era a porcentagem da receita que o Google repassava para a Apple no contrato ISA em 2016 e qual a sua motivacao concorrencial?",
@@ -87,7 +87,7 @@ def build_cot_dataset():
             "rejected": item["rejected"],
         })
 
-    # Aumento Sintético de Dados sobre as Páginas Reais da Camada Silver
+    # Synthetic data augmentation over the real Silver-layer pages
     target_terms = ["isa", "rsa", "default", "scale", "query", "advertiser", "cpc", "auction", "browser", "market share"]
     augmented_count = 0
 
@@ -96,7 +96,7 @@ def build_cot_dataset():
         content = page["content"]
         content_lower = content.lower()
 
-        # Filtrar apenas trechos altamente probatórios
+        # Keep only highly probative excerpts
         matched = [t for t in target_terms if t in content_lower]
         if len(matched) >= 2:
             augmented_count += 1
@@ -134,7 +134,7 @@ def build_cot_dataset():
 
     random.shuffle(cot_samples)
 
-    # Persistir datasets
+    # Persist datasets
     with open(COT_TRAIN_FILE, "w", encoding="utf-8") as f:
         for s in cot_samples:
             f.write(json.dumps(s, ensure_ascii=False) + "\n")
@@ -143,9 +143,9 @@ def build_cot_dataset():
         for d in dpo_samples:
             f.write(json.dumps(d, ensure_ascii=False) + "\n")
 
-    print(f"[OK] Data Augmentation concluido com sucesso!")
-    print(f"     -> Dataset CoT: {len(cot_samples)} amostras de raciocinio em {COT_TRAIN_FILE.name}")
-    print(f"     -> Dataset DPO: {len(dpo_samples)} pares de preferencia em {DPO_PREF_FILE.name}")
+    print(f"[OK] Data augmentation completed successfully!")
+    print(f"     -> CoT dataset: {len(cot_samples)} reasoning samples in {COT_TRAIN_FILE.name}")
+    print(f"     -> DPO dataset: {len(dpo_samples)} preference pairs in {DPO_PREF_FILE.name}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
 """
-Gerador de Dataset de Treinamento e Fine-Tuning (SFT / Instruction Tuning).
-Transforma os dados brutos e estruturados da camada Silver (Doc 1033) em pares de
-(Instrucao, Contexto, Raciocinio Forense e Resposta) para treino supervisionado de LLM.
+SFT / Instruction-Tuning Dataset Generator.
+Transforms raw and structured Silver-layer data (Doc 1033) into
+(Instruction, Context, Forensic Reasoning, Answer) samples, prepared for a future
+LoRA fine-tune. No model weights have been trained on this dataset yet.
 """
 
 import sys
@@ -22,7 +23,7 @@ EVAL_FILE = TRAINING_DIR / "eval.jsonl"
 META_FILE = TRAINING_DIR / "dataset_metadata.json"
 
 
-# Templates calibrados para ensinar ao modelo o papel de Perito Forense Antitruste
+# Instruction templates framing the Antitrust Forensic Expert role
 INSTRUCTION_TEMPLATES = [
     "Atue como um Perito Forense e analise as clausulas do acordo antitruste no texto judicial a seguir.",
     "Com base estrita nas evidencias documentais do caso U.S. v. Google, responda a questao com citacao mandatoria de paginas.",
@@ -33,11 +34,11 @@ INSTRUCTION_TEMPLATES = [
 
 def extract_key_excerpts() -> List[Dict[str, Any]]:
     """
-    Identifica paginas de alto impacto factual na camada Silver
-    (ex: e-mails internos, acordos Apple-Google, depoimentos de Satya Nadella e Sundar Pichai).
+    Identifies high-factual-impact pages in the Silver layer
+    (e.g. internal e-mails, Apple-Google agreements, Satya Nadella and Sundar Pichai testimony).
     """
     if not SILVER_CORPUS_JSONL.exists():
-        raise FileNotFoundError(f"Arquivo Silver nao encontrado em: {SILVER_CORPUS_JSONL}")
+        raise FileNotFoundError(f"Silver file not found at: {SILVER_CORPUS_JSONL}")
 
     records = []
     with open(SILVER_CORPUS_JSONL, "r", encoding="utf-8") as f:
@@ -45,7 +46,7 @@ def extract_key_excerpts() -> List[Dict[str, Any]]:
             if line.strip():
                 records.append(json.loads(line))
 
-    # Filtrar paginas ricas em termos contratuais e probatorios
+    # Keep pages rich in contractual and evidentiary terms
     target_terms = ["isa", "rsa", "revenue share", "default", "nadella", "pichai", "safari", "sherman", "android"]
     high_impact_pages = []
 
@@ -55,13 +56,13 @@ def extract_key_excerpts() -> List[Dict[str, Any]]:
         if score >= 2:
             high_impact_pages.append(rec)
 
-    print(f"[*] Identificadas {len(high_impact_pages)} paginas de alta densidade probatoria para treino.")
+    print(f"[*] Identified {len(high_impact_pages)} high-evidentiary-density pages for the dataset.")
     return high_impact_pages
 
 
 def generate_sft_dataset() -> None:
     """
-    Gera pares de treino no formato padrao Alpaca/ChatML:
+    Generates samples in the standard Alpaca/ChatML format:
     {
        "instruction": ...,
        "input": ...,
@@ -73,7 +74,7 @@ def generate_sft_dataset() -> None:
 
     dataset_samples = []
 
-    # Casos de treino estruturados com raciocinio forense profundo
+    # Hand-curated scenarios with in-depth forensic reasoning
     sft_scenarios = [
         {
             "query": "Qual era a taxa de revenue share paga pelo Google a Apple pelo acordo ISA em 2016 e como isso impactava o mercado?",
@@ -110,7 +111,7 @@ def generate_sft_dataset() -> None:
             "output": scenario["response"]
         })
 
-    # Expandir com variacoes a partir das paginas identificadas
+    # Expand with variations built from the identified pages
     for p in pages[:45]:
         page_num = p["page"]
         text_snippet = p["content"][:400].replace("\n", " ")
@@ -122,7 +123,7 @@ def generate_sft_dataset() -> None:
 
     random.shuffle(dataset_samples)
 
-    # Divisao 80% Treino / 20% Validacao
+    # 80% train / 20% eval split
     split_idx = int(len(dataset_samples) * 0.8)
     train_data = dataset_samples[:split_idx]
     eval_data = dataset_samples[split_idx:]
@@ -147,10 +148,10 @@ def generate_sft_dataset() -> None:
     with open(META_FILE, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    print(f"[OK] Dataset SFT gerado com sucesso!")
-    print(f"     -> Treino: {len(train_data)} amostras em {TRAIN_FILE.name}")
-    print(f"     -> Validacao: {len(eval_data)} amostras em {EVAL_FILE.name}")
-    print(f"     -> Metadados gravados em {META_FILE.name}")
+    print(f"[OK] SFT dataset generated successfully!")
+    print(f"     -> Train: {len(train_data)} samples in {TRAIN_FILE.name}")
+    print(f"     -> Eval: {len(eval_data)} samples in {EVAL_FILE.name}")
+    print(f"     -> Metadata written to {META_FILE.name}")
 
 
 if __name__ == "__main__":

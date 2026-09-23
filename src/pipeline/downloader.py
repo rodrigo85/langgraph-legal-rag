@@ -1,10 +1,10 @@
 """
-Camada Bronze - Ingestao Bruta de Dados (Multi-Document Landmark Lakehouse).
-Modulo responsavel pelo download idempotente e validacao de integridade
-dos documentos oficiais do processo judicial U.S. v. Google LLC (2020 a 2025):
-1. Doc 1 (2020-10-20): Peticao Inicial DOJ (Complaint)
-2. Doc 1033 (2024-08-05): Sentenca de Merito e Veredito (Memorandum Opinion)
-3. Doc 1062-1 (2024-11-20): Proposta de Remedios & Desmembramento (Proposed Final Judgment)
+Bronze Layer - Raw Data Ingestion (Multi-Document Landmark Lakehouse).
+Handles idempotent download and integrity validation
+of the official court documents in U.S. v. Google LLC (2020 to 2025):
+1. Doc 1 (2020-10-20): DOJ Complaint
+2. Doc 1033 (2024-08-05): Liability Ruling and Verdict (Memorandum Opinion)
+3. Doc 1062-1 (2024-11-20): Proposed Remedies & Divestiture (Proposed Final Judgment)
 """
 
 import sys
@@ -52,7 +52,7 @@ LANDMARK_REGISTRY: Dict[str, Dict[str, Any]] = {
 
 
 def download_single_document(doc_info: Dict[str, Any]) -> Path:
-    """Download idempotente com validacao de magic bytes %PDF-."""
+    """Idempotent download with %PDF- magic-byte validation."""
     target_path = Path(doc_info["target_path"])
     url = doc_info["url"]
     title = doc_info["title"]
@@ -61,12 +61,12 @@ def download_single_document(doc_info: Dict[str, Any]) -> Path:
 
     if target_path.exists() and target_path.stat().st_size > 100_000:
         size_mb = target_path.stat().st_size / (1024 * 1024)
-        print(f"[BRONZE] {title} ja presente: {target_path.name} ({size_mb:.2f} MB)")
+        print(f"[BRONZE] {title} already present: {target_path.name} ({size_mb:.2f} MB)")
         return target_path
 
-    print(f"[BRONZE] Baixando: {title}")
+    print(f"[BRONZE] Downloading: {title}")
     print(f"         URL: {url}")
-    print(f"         Destino: {target_path.name}")
+    print(f"         Destination: {target_path.name}")
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) DataEngineeringPipeline/1.0"
@@ -87,36 +87,36 @@ def download_single_document(doc_info: Dict[str, Any]) -> Path:
             if total_size > 0:
                 percent = (downloaded / total_size) * 100
                 mb = downloaded / (1024 * 1024)
-                sys.stdout.write(f"\r    [Progresso] {percent:.1f}% ({mb:.2f} MB)")
+                sys.stdout.write(f"\r    [Progress] {percent:.1f}% ({mb:.2f} MB)")
                 sys.stdout.flush()
 
-    print("\n    [BRONZE] Download concluido.")
+    print("\n    [BRONZE] Download complete.")
 
-    # Validacao de Assinatura Magica de Formato
+    # File-format magic signature validation
     with open(target_path, "rb") as f:
         header = f.read(5)
         if header != b"%PDF-":
-            raise ValueError(f"[ERRO DE DADOS] Arquivo corrompido ou invalido. Cabecalho: {header}")
+            raise ValueError(f"[DATA ERROR] Corrupted or invalid file. Header: {header}")
 
     size_mb = target_path.stat().st_size / (1024 * 1024)
-    print(f"    [BRONZE] Assinatura %PDF- validada com sucesso ({size_mb:.2f} MB).")
+    print(f"    [BRONZE] %PDF- signature validated successfully ({size_mb:.2f} MB).")
     return target_path
 
 
 def download_court_opinion() -> Path:
-    """Funcao legada para retrocompatibilidade."""
+    """Legacy function kept for backward compatibility."""
     return download_single_document(LANDMARK_REGISTRY["doc1033"])
 
 
 def download_all_landmarks() -> Dict[str, Path]:
-    """Baixa todos os marcos historicos do processo judicial para a camada Bronze."""
+    """Downloads all landmark court documents into the Bronze layer."""
     print("=" * 70)
-    print("CAMADA BRONZE - INGESTAO DE MARCOS HISTORICOS (U.S. v. Google)")
+    print("BRONZE LAYER - LANDMARK DOCUMENT INGESTION (U.S. v. Google)")
     print("=" * 70)
     results = {}
     for doc_id, doc_info in LANDMARK_REGISTRY.items():
         results[doc_id] = download_single_document(doc_info)
-    print("\n[OK] Todos os documentos da Camada Bronze estao prontos e validados.")
+    print("\n[OK] All Bronze-layer documents are ready and validated.")
     return results
 
 

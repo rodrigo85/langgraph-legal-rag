@@ -1,9 +1,9 @@
 """
-Testes Unitarios do Pipeline de Dados Nao-Estruturados.
-Valida:
-1. Extracao e Linhagem da Camada Silver (JSONL)
-2. Particionamento e enriquecimento de Chunks da Camada Gold
-3. Idempotencia da carga no ChromaDB
+Unit Tests for the Unstructured Data Pipeline.
+Validates:
+1. Silver-layer extraction and lineage (JSONL)
+2. Gold-layer chunk partitioning and enrichment
+3. Idempotency of the ChromaDB load
 """
 
 import sys
@@ -18,9 +18,9 @@ from src.pipeline.indexer import chunk_silver_documents, load_or_build_gold_vect
 
 
 def test_silver_documents_metadata():
-    """Valida se a camada Silver contem metadados de linhagem obrigatorios."""
+    """Validates that the Silver layer contains the required lineage metadata."""
     docs = load_silver_documents()
-    assert len(docs) > 0, "A camada Silver nao possui documentos extraidos."
+    assert len(docs) > 0, "The Silver layer has no extracted documents."
     
     first_doc = docs[0]
     assert "source_file" in first_doc.metadata
@@ -32,7 +32,7 @@ def test_silver_documents_metadata():
 
 
 def test_chunking_enrichment():
-    """Valida se os chunks sao gerados com chunk_id estruturado."""
+    """Validates that chunks are generated with a structured chunk_id."""
     docs = load_silver_documents()
     sample_docs = docs[:5]
     chunks = chunk_silver_documents(sample_docs, chunk_size=500, chunk_overlap=100)
@@ -45,7 +45,7 @@ def test_chunking_enrichment():
 
 
 def test_gold_vectorstore_readiness():
-    """Valida se o ChromaDB responde a consultas de similaridade."""
+    """Validates that ChromaDB responds to similarity queries."""
     vector_store = load_or_build_gold_vectorstore()
     retriever = vector_store.as_retriever(search_kwargs={"k": 2})
     results = retriever.invoke("Apple Google search default agreement")
@@ -61,5 +61,5 @@ if __name__ == "__main__":
     test_silver_documents_metadata()
     test_chunking_enrichment()
     test_gold_vectorstore_readiness()
-    print("\n[OK] Todos os testes de pipeline de dados passaram com sucesso!")
+    print("\n[OK] All data pipeline tests passed successfully!")
 

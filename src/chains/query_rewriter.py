@@ -1,7 +1,7 @@
 """
 Query Rewriter.
-Reformula perguntas investigativas imprecisas ou com vocabulario informal
-para a terminologia juridica e contratual formal do processo antitruste U.S. v. Google.
+Rewrites vague or informally worded investigative questions into the formal legal
+and contractual terminology of the U.S. v. Google antitrust case.
 """
 
 from pydantic import BaseModel, Field
@@ -23,7 +23,7 @@ class RewrittenQuery(BaseModel):
 
 def create_query_rewriter():
     """
-    Cria a chain de transformacao de consulta para maximizar o recall semantico.
+    Builds the query transformation chain to maximize semantic recall.
     """
     llm = ChatOllama(
         model=OLLAMA_LLM_MODEL,

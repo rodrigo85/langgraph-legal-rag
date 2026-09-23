@@ -1,7 +1,7 @@
 """
 Document Relevance Grader.
-Avalia se um chunk de documento recuperado possui relacao semantica e factual
-com a questao investigativa do usuario.
+Assesses whether a retrieved document chunk is semantically and factually
+related to the user's investigative question.
 """
 
 from typing import Literal
@@ -24,7 +24,7 @@ class GradeDocuments(BaseModel):
 
 def create_doc_grader():
     """
-    Cria a chain de avaliacao de relevancia com saida estruturada.
+    Builds the relevance-grading chain with structured output.
     """
     llm = ChatOllama(
         model=OLLAMA_LLM_MODEL,
@@ -65,8 +65,8 @@ class BatchGradeDocuments(BaseModel):
 
 def create_batch_doc_grader():
     """
-    Cria a chain de avaliacao em lote que processa TODOS os chunks em uma unica inferencia.
-    Reduz a latencia da filtragem em ate 75%.
+    Builds the batch grading chain that processes ALL chunks in a single inference.
+    Cuts filtering latency by up to 75%.
     """
     llm = ChatOllama(
         model=OLLAMA_LLM_MODEL,

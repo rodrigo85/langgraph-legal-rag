@@ -1,18 +1,18 @@
-.PHONY: help install bronze silver gold pipeline test benchmark run clean
+.PHONY: help install bronze silver gold pipeline specialize evolution test benchmark run clean
 
 help:
-	@echo "Comandos disponiveis no Pipeline de Dados e Agente RAG:"
-	@echo "  make install      - Instala todas as dependencias em ambiente virtual"
-	@echo "  make bronze       - Ingestao bruta (Download do PDF judicial para data/raw)"
-	@echo "  make silver       - Processamento, limpeza e metadados de linhagem (data/processed)"
-	@echo "  make gold         - Chunking semantico e indexacao idempotente no ChromaDB"
-	@echo "  make pipeline     - Executa o pipeline de dados completo (Bronze -> Silver -> Gold)"
-	@echo "  make train        - Treina/especializa o modelo no Ollama com aceleracao GPU RTX"
-	@echo "  make evolution    - Executa o benchmark A/B e gera relatorio de evolucao de inteligencia"
-	@echo "  make test         - Executa a suite de testes unitarios e de integracao"
-	@echo "  make benchmark    - Executa o benchmark comparativo Naive RAG vs Self-RAG"
-	@echo "  make run          - Inicia a interface CLI interativa"
-	@echo "  make clean        - Remove caches e temporarios de compilacao"
+	@echo "Available commands (data pipeline and RAG agent):"
+	@echo "  make install      - Install all dependencies (run inside a virtual environment)"
+	@echo "  make bronze       - Raw ingestion (download the court PDFs into data/raw)"
+	@echo "  make silver       - Parsing, cleaning and lineage metadata (data/processed)"
+	@echo "  make gold         - Chunking and idempotent indexing into ChromaDB"
+	@echo "  make pipeline     - Run the full data pipeline (Bronze -> Silver -> Gold)"
+	@echo "  make specialize   - Generate datasets and register the Modelfile-specialized models in Ollama"
+	@echo "  make evolution    - Run the 3-generation A/B benchmark and write the evolution report"
+	@echo "  make test         - Run the test suite (requires Ollama and the Gold index)"
+	@echo "  make benchmark    - Run the Naive RAG vs Self-RAG benchmark"
+	@echo "  make run          - Start the interactive CLI"
+	@echo "  make clean        - Remove Python caches"
 
 install:
 	pip install -r requirements-dev.txt
@@ -27,18 +27,17 @@ gold:
 	python src/pipeline/indexer.py
 
 pipeline: bronze silver gold
-	@echo "[OK] Pipeline de dados executado com sucesso!"
+	@echo "[OK] Data pipeline finished."
 
-train:
+specialize:
 	python src/training/dataset_generator.py
-	python src/training/train.py
+	python src/training/register_models.py
 
 evolution:
-	python src/evaluation/eval_evolution.py
+	python src/evaluation/eval_3_generations.py
 
 test:
-	python tests/test_pipeline.py
-	python tests/test_agent.py
+	python -m pytest tests -v -s
 
 benchmark:
 	python src/evaluation/benchmark.py
@@ -47,5 +46,5 @@ run:
 	python src/cli.py
 
 clean:
-	rm -rf __pycache__ src/**/__pycache__ tests/__pycache__ .pytest_cache
-
+	find . -name __pycache__ -type d -not -path "./.venv/*" -prune -exec rm -rf {} +
+	rm -rf .pytest_cache

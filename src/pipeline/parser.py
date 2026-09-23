@@ -1,7 +1,7 @@
 """
-Camada Silver - Extracao, Limpeza e Enriquecimento de Metadados.
-Transforma dados brutos (Bronze PDF) em registros estruturados de texto (Silver JSONL)
-preservando linhagem completa de dados (page, char_count, document_title).
+Silver Layer - Extraction, Cleaning and Metadata Enrichment.
+Transforms raw data (Bronze PDF) into structured text records (Silver JSONL)
+while preserving full data lineage (page, char_count, document_title).
 """
 
 import sys
@@ -38,7 +38,7 @@ WITNESS_DATES = {
 
 
 def extract_page_temporal_metadata(text: str, page_num: int) -> dict:
-    """Extrai metadados temporais, linhagem de datas e testemunhas citadas na pagina."""
+    """Extracts temporal metadata, date lineage and witnesses cited on the page."""
     years = [int(y) for y in re.findall(r"\b(199\d|20[0-2]\d)\b", text)]
     min_year = min(years) if years else 2020
     max_year = max(years) if years else 2024
@@ -86,14 +86,14 @@ def parse_and_clean_pdf(
     output_jsonl: Path = SILVER_CORPUS_JSONL
 ) -> List[Document]:
     """
-    Processa todos os documentos marcos (Doc 1, Doc 1033, Doc 1062) presentes na camada Bronze,
-    extrai metadados temporais e grava na camada Silver consolidada (JSONL).
+    Processes all landmark documents (Doc 1, Doc 1033, Doc 1062) present in the Bronze layer,
+    extracts temporal metadata and writes the consolidated Silver layer (JSONL).
     """
     output_jsonl.parent.mkdir(parents=True, exist_ok=True)
     all_silver_docs: List[Document] = []
     all_jsonl_records = []
 
-    # Se um PDF específico foi solicitado
+    # If a specific PDF was requested
     target_registry = dict(LANDMARK_REGISTRY)
     if pdf_path:
         target_registry = {
@@ -109,10 +109,10 @@ def parse_and_clean_pdf(
     for doc_key, doc_info in target_registry.items():
         doc_path = Path(doc_info["target_path"])
         if not doc_path.exists():
-            print(f"[SILVER Alerta] Documento {doc_key} nao encontrado em: {doc_path.name}. Pulando.")
+            print(f"[SILVER Warning] Document {doc_key} not found at: {doc_path.name}. Skipping.")
             continue
 
-        print(f"[SILVER] Processando marco judicial [{doc_key}]: {doc_info['title']}")
+        print(f"[SILVER] Processing landmark document [{doc_key}]: {doc_info['title']}")
         reader = pypdf.PdfReader(str(doc_path))
         total_raw_pages = len(reader.pages)
         docket_num = doc_info.get("docket_number", 1033)
@@ -122,14 +122,14 @@ def parse_and_clean_pdf(
             raw_text = page.extract_text() or ""
             clean_text = "\n".join([line.strip() for line in raw_text.splitlines() if line.strip()])
             
-            # Filtro de qualidade de dados: ignorar paginas sem conteudo substancial
+            # Data-quality filter: skip pages without substantial content
             if len(clean_text) < 50:
                 continue
 
             page_hash = hashlib.sha256(clean_text.encode("utf-8")).hexdigest()[:16]
             temporal_meta = extract_page_temporal_metadata(clean_text, page_idx)
             
-            # Metadados especificos do docket
+            # Docket-specific metadata
             if docket_num == 1:
                 temporal_meta["filing_date"] = "2020-10-20"
                 temporal_meta["filing_date_int"] = 20201020
@@ -164,21 +164,21 @@ def parse_and_clean_pdf(
                 "metadata": metadata
             })
 
-        print(f"    [SILVER] {doc_pages_processed}/{total_raw_pages} paginas extraidas com sucesso.")
+        print(f"    [SILVER] {doc_pages_processed}/{total_raw_pages} pages extracted successfully.")
 
-    # Persistir camada Silver consolidada em JSONL
+    # Persist the consolidated Silver layer as JSONL
     with open(output_jsonl, "w", encoding="utf-8") as f:
         for record in all_jsonl_records:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
-    print(f"[SILVER] Total consolidado: {len(all_silver_docs)} paginas persistidas em: {output_jsonl.name}")
+    print(f"[SILVER] Consolidated total: {len(all_silver_docs)} pages persisted to: {output_jsonl.name}")
     return all_silver_docs
 
 
 def load_silver_documents(silver_jsonl: Path = SILVER_CORPUS_JSONL) -> List[Document]:
     """
-    Carrega rapidamente os documentos pre-processados da camada Silver.
-    Se nao existir, executa o parser automaticamente.
+    Quickly loads the preprocessed Silver-layer documents.
+    If the file does not exist, runs the parser automatically.
     """
     if not silver_jsonl.exists():
         return parse_and_clean_pdf()

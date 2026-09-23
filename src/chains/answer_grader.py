@@ -1,6 +1,6 @@
 """
 Answer Grader Chain.
-Audita se a resposta gerada de fato resolve e responde a pergunta original do usuario.
+Checks whether the generated answer actually addresses the user's original question.
 """
 
 from typing import Literal
@@ -23,7 +23,7 @@ class GradeAnswer(BaseModel):
 
 def create_answer_grader():
     """
-    Cria a chain de verificacao de pertinencia e utilidade da resposta.
+    Builds the chain that checks answer relevance and usefulness.
     """
     llm = ChatOllama(
         model=OLLAMA_LLM_MODEL,

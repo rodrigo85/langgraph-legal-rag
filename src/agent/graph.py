@@ -1,7 +1,7 @@
 """
-Orquestracao do DAG Cíclico no LangGraph.
-Monta a arquitetura de maquina de estados finitos do Self-RAG
-conectando nos de extracao, avaliacao de qualidade e ciclos de autocorrecao.
+Cyclic DAG orchestration in LangGraph.
+Assembles the Self-RAG finite state machine, wiring together retrieval,
+quality-grading, and self-correction loop nodes.
 """
 
 import sys
@@ -28,23 +28,23 @@ from src.agent.edges import (
 
 def build_graph():
     """
-    Compila o grafo LangGraph como um DAG com suporte a retroalimentacao ciclica
-    e garantia matematica contra loops infinitos.
+    Compiles the LangGraph graph as a DAG with cyclic feedback support
+    and a guaranteed bound against infinite loops.
     """
     workflow = StateGraph(AgentState)
 
-    # Registro dos nos de operacao
+    # Register operation nodes
     workflow.add_node("retrieve", retrieve_node)
     workflow.add_node("grade_documents", grade_documents_node)
     workflow.add_node("generate", generate_node)
     workflow.add_node("rewrite_query", rewrite_query_node)
     workflow.add_node("fallback", fallback_node)
 
-    # Ponto de entrada e fluxo primario
+    # Entry point and primary flow
     workflow.set_entry_point("retrieve")
     workflow.add_edge("retrieve", "grade_documents")
 
-    # Aresta condicional pos-avaliacao de qualidade documental
+    # Conditional edge after document quality grading
     workflow.add_conditional_edges(
         "grade_documents",
         decide_to_generate,
@@ -55,22 +55,22 @@ def build_graph():
         },
     )
 
-    # Ciclo de retroalimentacao: reescrita reexecuta a busca vetorial
+    # Feedback loop: rewriting re-runs the vector search
     workflow.add_edge("rewrite_query", "retrieve")
 
-    # Aresta condicional pos-geracao: auditoria dupla com protecao anti-loop
+    # Post-generation conditional edge: dual audit with anti-loop protection
     workflow.add_conditional_edges(
         "generate",
         grade_generation_v_documents_and_question,
         {
-            "not_grounded": "generate",        # Gera novamente com maior restricao (max 1x por chunk set)
-            "not_useful": "rewrite_query",     # Reformula e busca novos chunks
-            "fallback": "fallback",            # Abstencao segura
-            "useful": END,                     # Validado com sucesso
+            "not_grounded": "generate",        # Regenerate with stricter constraints (max 1x per chunk set)
+            "not_useful": "rewrite_query",     # Rewrite and retrieve new chunks
+            "fallback": "fallback",            # Safe abstention
+            "useful": END,                     # Successfully validated
         },
     )
 
-    # O no de fallback sempre finaliza no END com disclaimer auditado
+    # The fallback node always ends at END with an audited disclaimer
     workflow.add_edge("fallback", END)
 
     return workflow.compile()
@@ -78,5 +78,5 @@ def build_graph():
 
 if __name__ == "__main__":
     app = build_graph()
-    print("[OK] Grafo LangGraph compilado e validado com sucesso!")
+    print("[OK] LangGraph graph compiled and validated successfully!")
 

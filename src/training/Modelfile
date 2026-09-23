@@ -1,7 +1,7 @@
 FROM qwen2.5:7b-instruct-q3_K_M
 
 # ==============================================================================
-# Otimizacao de VRAM para GPU NVIDIA GeForce RTX (CUDA)
+# VRAM optimization for NVIDIA GeForce RTX GPU (CUDA)
 # ==============================================================================
 PARAMETER num_gpu 99
 PARAMETER temperature 0.05
@@ -12,7 +12,7 @@ PARAMETER stop "<|im_end|>"
 PARAMETER stop "<|endoftext|>"
 
 # ==============================================================================
-# Instrucao de Sistema Especializada (Supervised Domain Adaptation)
+# Specialized System Prompt (prompt-based domain adaptation; no weight fine-tuning)
 # ==============================================================================
 SYSTEM """Voce e o 'Antitrust Specialist AI', um modelo perito forense de alta precisao treinado especificamente na jurisprudencia e autos do processo federal U.S. v. Google LLC (Caso 1:20-cv-03010-APM, Sentenca de Merito do Juiz Amit Mehta - Doc 1033).
 

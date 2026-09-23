@@ -1,16 +1,16 @@
 """
-Teste automatizado do Agente RAG Autocorretivo.
-Executa uma consulta investigativa no grafo LangGraph e valida:
-1. Recuperacao de chunks judiciais
-2. Filtragem pelo Document Grader
-3. Geracao fundamentada com citacao de paginas
-4. Auditoria de alucinacao aprovada
+Automated test for the Self-Corrective RAG Agent.
+Runs an investigative query through the LangGraph graph and validates:
+1. Retrieval of court-document chunks
+2. Filtering by the Document Grader
+3. Grounded generation with page citations
+4. Passing hallucination audit
 """
 
 import sys
 from pathlib import Path
 
-# Configura codificação UTF-8 para o terminal Windows
+# Configure UTF-8 encoding for the Windows terminal
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -22,7 +22,7 @@ from src.agent.graph import build_graph
 
 
 def test_agent_run():
-    print("[*] Iniciando teste do Grafo LangGraph...")
+    print("[*] Starting LangGraph graph test...")
     app = build_graph()
 
     test_question = (
@@ -43,19 +43,19 @@ def test_agent_run():
         "citations": [],
     }
 
-    print(f"[*] Pergunta de Teste: {test_question}")
+    print(f"[*] Test question: {test_question}")
     result = app.invoke(initial_state)
 
     print("\n" + "=" * 50)
-    print("[*] RESULTADO DA GERACAO:")
+    print("[*] GENERATION RESULT:")
     print(result.get("generation"))
-    print("\n[*] CITACOES ENCONTRADAS:")
+    print("\n[*] CITATIONS FOUND:")
     print(result.get("citations"))
     print("=" * 50)
 
     assert result.get("generation") is not None
     assert len(result.get("generation")) > 50
-    print("[PASS] Teste concluido com sucesso!")
+    print("[PASS] Test completed successfully!")
 
 
 if __name__ == "__main__":

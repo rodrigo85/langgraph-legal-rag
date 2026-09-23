@@ -137,7 +137,7 @@ Em sistemas tradicionais, a alucinação barrada simplesmente sumiria da memóri
 
 ### 5.1 O Que Foi Construído
 
-Implementamos um portão de observabilidade em [`src/agent/edges.py`](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/src/agent/edges.py) e [`src/config.py`](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/src/config.py):
+Implementamos um portão de observabilidade em [`src/agent/edges.py`](../src/agent/edges.py) e [`src/config.py`](../src/config.py):
 
 ```python
 def log_hallucination_incident(
@@ -225,13 +225,13 @@ flowchart TD
 1. **`generation_attempts` no `AgentState`:** O nó `generate` rastreia quantas vezes tentou sintetizar no mesmo conjunto de chunks.
 2. **Escape Inteligente de Chunks:** Na 1ª falha, permite 1 re-tentativa com instrução reforçada de literalidade. Na 2ª falha com os **mesmos chunks**, o DAG reconhece que os chunks são insuficientes e força a rota para `rewrite_query` para buscar novos trechos.
 3. **Nó de Abstenção Pericial (`fallback_node`):** Se as retentativas globais forem esgotadas sem ancoragem 100%, o sistema não alucina: ativa o nó de fallback com parecer forense de evidência inconclusiva.
-4. **Blindagem no Prompt do Gerador:** Inclusão de regra explícita no sistema em [`src/chains/generator.py`](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/src/chains/generator.py#L52) proibindo associar executivos de outras empresas como se fossem da Google.
+4. **Blindagem no Prompt do Gerador:** Inclusão de regra explícita no sistema em [`src/chains/generator.py`](../src/chains/generator.py) proibindo associar executivos de outras empresas como se fossem da Google.
 
 ---
 
 ## 7. A Dead-Letter Queue em Ação Real (A Prova Forense com 10 Incidentes)
 
-O arquivo [`data/logs/hallucination_incidents.jsonl`](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/data/logs/hallucination_incidents.jsonl) está ativo e já registrou **10 incidentes reais** auditados.
+O arquivo [`data/logs/hallucination_incidents.jsonl`](../data/logs/hallucination_incidents.jsonl) está ativo e já registrou **10 incidentes reais** auditados.
 
 ### Exemplo 1: O Loop de Dr. Ramaswamy (Capturado em Tempo Real)
 ```json
@@ -463,11 +463,11 @@ flowchart LR
    * **Entrada (Prompt):** *"qual integrante mais importante da empresa Google foi chamado para depor?"*
    * **Rejeitado (`rejected`):** A resposta da 1ª tentativa que citava Eric Christensen como executivo da Google.
    * **Escolhido (`chosen`):** A resposta final auditada citando Sundar Pichai (CEO da Google e Alphabet).
-2. **Prevenção de Regressão:** O caso é adicionado à suíte de testes de regressão automatizada ([`qa_benchmark.json`](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/data/samples/qa_benchmark.json)). Qualquer alteração futura que volte a cometer esse erro falha no teste de CI/CD.
+2. **Prevenção de Regressão:** O caso é adicionado à suíte de testes de regressão automatizada ([`qa_benchmark.json`](../data/samples/qa_benchmark.json)). Qualquer alteração futura que volte a cometer esse erro é detectada ao rodar o benchmark (`make benchmark`).
 
 ---
 
-## 10. Comparativo de Maturidade
+## 11. Comparativo de Maturidade
 
 | Critério | RAG Tradicional (Tutoriais Comuns) | Nossa Arquitetura Pericial (LangGraph + DLQ) |
 | :--- | :--- | :--- |
@@ -480,74 +480,8 @@ flowchart LR
 
 ---
 
-## 11. Conclusão
+## 12. Conclusão
 
 Este estudo de caso comprova que **a inteligência de um sistema moderno não reside apenas nos parâmetros brutos de um modelo fundacional, mas na integridade da engenharia de dados que o orquestra**. 
 
 Ao combinar **LangGraph para autocura em tempo de execução**, **Dead-Letter Queue para observabilidade contínua** e **Nós de Abstenção Pericial para mitigação de risco**, criamos um sistema pericial autônomo, auditável e preparado para os mais exigentes ambientes corporativos e regulatórios.
-
----
-
-## 13. 🎙️ Roteiro de Apresentação (Pitch Técnico & Storytelling para Demonstrações)
-
-> **Dica de Apresentação:** Use este roteiro de 5 atos para conduzir reuniões técnicas, entrevistas ou demonstrações executivas. Ele foi construído no formato de **jornada de engenharia**, mostrando como você lidou com problemas reais de produção em vez de apresentar um caso teórico perfeito.
-
-```mermaid
-timeline
-    title Jornada da Demonstração Técnica (Storytelling em 5 Atos)
-    Ato 1 (O Gancho) : A Fragilidade do RAG Comum : O Problema do 'ChatGPT Ingênuo' em Direito/Finanças
-    Ato 2 (O Caso Real) : O Caso Eric Christensen : Actor-Critic em Ação ($T=0$) barrando alucinação relacional
-    Ato 3 (O Diagnóstico) : O Bug de Estado no LangGraph : Investigação sênior de RCA e a solução anti-loop matemática
-    Ato 4 (A Governança) : A Dead-Letter Queue (DLQ) : A interceptação do caso 'ações ilegais' gravada em JSONL
-    Ato 5 (O Negócio) : O Data Flywheel de DPO : Transformando falhas em dados de treino de alta fidelidade
-```
-
----
-
-### 🎭 Ato 1: A Abertura (O Gancho de Engenharia)
-* **O que falar:**
-  > *"Conectar um prompt a uma API de LLM e chamar de RAG qualquer um faz em uma tarde. O verdadeiro desafio de Engenharia de Dados para IA começa quando o sistema vai para produção: o que acontece quando o modelo alucina, inventa cláusulas ou entra em loop em um processo federal de alta criticidade? Foi para responder a isso que construímos esta arquitetura pericial com LangGraph."*
-* **Slide / Tela:** Mostrar a Arquitetura Medalhão (Bronze $\rightarrow$ Silver $\rightarrow$ Gold) e o grafo cíclico no [README.md](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/README.md).
-
----
-
-### 🎭 Ato 2: O Primeiro Desafio Real (O Caso Eric Christensen)
-* **O que falar:**
-  > *"Fizemos um teste com ruído: 'qual integrante mais importante da Google foi chamado para depor?'. Um RAG ingênuo teria trazido Sundar Pichai e adicionado Eric Christensen como executivo da Google. Por quê? Porque na tabela da sentença, Christensen aparece associado à Google, mas como testemunha chamada pela Google ('Called By'), enquanto ele é, na verdade, Diretor da Motorola ('Affiliation').*
-  > *Aqui entrou o nosso Auditor Adversarial em LangGraph com Temperatura Zero ($T=0.0$). Ele quebrou a resposta em implicações lógicas (NLI), detectou que a filiação de Christensen à Google não existia no texto, acionou o rollback e expurgou o rascunho antes que o usuário pudesse vê-lo."*
-* **Slide / Tela:** Exibir o trecho da Página 285 da sentença e a tabela de decomposição lógica da Seção 4.
-
----
-
-### 🎭 Ato 3: O Diagnóstico Sênior (O Loop Infinito e o Bug de Estado)
-* **O que falar:**
-  > *"Durante os testes de estresse, nos deparamos com um comportamento avançado de Grafos de IA: o modelo caiu em um conjunto de trechos sobre o Dr. Sridhar Ramaswamy que não respondiam com certeza à pergunta. Como o gerador falhava no Grounding, o grafo mandava tentar de novo com os mesmos dois trechos. Como arestas condicionais no LangGraph não alteram dicionários de estado, o contador de retentativas ficou congelado em 1, gerando um loop de 8 rejeições consecutivas.*
-  > *Em vez de culpar o modelo, agi como Engenheiro de Dados: diagnosticamos que arestas não persistem mutações de estado e que trechos deficientes geram becos sem saída. Criamos um contador granular no nó (`generation_attempts`), um escape inteligente que força a reescrita de busca após 2 falhas no mesmo lote de chunks, e um nó formal de Abstenção Pericial (`fallback_node`). Agora o grafo possui limite matemático de $O(\text{MAX\_RETRIES} \times 2)$, tornando impossível qualquer travamento."*
-* **Slide / Tela:** Exibir o diagrama de escape e o código em [`src/agent/edges.py`](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/src/agent/edges.py).
-
----
-
-### 🎭 Ato 4: A Prova Forense (A Dead-Letter Queue em Ação)
-* **O que falar:**
-  > *"Em engenharia de dados corporativa, mensagens que falham não são apagadas; vão para uma Dead-Letter Queue (DLQ). Criamos a mesma disciplina para o nosso sistema de IA em `data/logs/hallucination_incidents.jsonl`. Toda vez que o auditor barra uma alucinação, gravamos o timestamp UTC, a pergunta original, o rascunho rejeitado e o parecer do auditor.*
-  > *Vejam este caso impressionante registrado na nossa DLQ: quando o usuário perguntou se 'o Google estava fazendo ações ilegais', o modelo gerador tentou amenizar dizendo que 'a sentença não apresentava evidências de ilegalidade'. O Auditor interceptou na hora: a decisão do Juiz Amit Mehta no Doc 1033 foi enfática ao condenar a Google por monopólio ilegal sob a Seção 2 da Lei Sherman. O rascunho mentiroso foi gravado na DLQ e banido da resposta."*
-* **Slide / Tela:** Abrir o arquivo real [`data/logs/hallucination_incidents.jsonl`](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/data/logs/hallucination_incidents.jsonl) e destacar o registro de `2026-09-23T16:57:05Z`.
-
----
-
-### 🎭 Ato 5: O Fechamento de Negócio (O Data Flywheel de DPO)
-* **O que falar:**
-  > *"Esses 10 incidentes gravados na nossa DLQ não são falhas descartáveis: eles são o maior patrimônio de dados do projeto. Eles formam automaticamente os pares de 'Resposta Rejeitada' vs 'Resposta Escolhida' para alimentar o nosso pipeline de Direct Preference Optimization (DPO).*
-  > *Dessa forma, fechamos o ciclo de melhoria contínua: usamos as alucinações capturadas pela DLQ para recalibrar e treinar os pesos do nosso modelo local na GPU, garantindo que a cada ciclo o sistema se torne mais resiliente e determinístico."*
-* **Slide / Tela:** Mostrar o diagrama do Data Flywheel (Seção 8) e a pasta [`data/training/preference_dataset.jsonl`](file:///c:/Users/rodri/OneDrive/Documentos/GitHub/llm/data/training/preference_dataset.jsonl).
-
----
-
-### 💡 FAQ Rápido para a Apresentação (Respostas Prontas)
-
-| Pergunta Provável da Banca / Entrevistador | Resposta Técnica Recomendada |
-| :--- | :--- |
-| **"Por que usar LangGraph em vez de LangChain clássico ou LlamaIndex?"** | *"Porque o processo judicial exige ciclos de retroalimentação não-lineares. O LangChain tradicional executa pipelines unidirecionais (DAGs acíclicos). Com o LangGraph, temos uma máquina de estados finitos que suporta rollbacks, re-tentativas com penalidade e roteamento condicional dinâmico."* |
-| **"O LLM aprendeu sozinho após ser corrigido pelo Auditor?"** | *"Não. Em inferência, os pesos da rede neural estão congelados. O modelo foi contido em tempo de execução pela máquina de estados do LangGraph. O aprendizado permanente ocorre a posteriori, quando pegamos os logs da nossa Dead-Letter Queue e rodamos o fine-tuning DPO."* |
-| **"E se mesmo após 3 retentativas o documento não tiver a resposta?"** | *"O sistema aciona o nó de Abstenção Pericial (`fallback_node`). Ele emite um parecer forense informando quais páginas foram consultadas e atesta que os autos são inconclusivos. Em sistemas de missão crítica, admitir a falta de dados é infinitamente superior a inventar uma resposta plausível."* |
-

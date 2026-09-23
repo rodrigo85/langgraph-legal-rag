@@ -1,6 +1,6 @@
 """
-Arestas Condicionais e Validadores de Decisao (Routing & Validation Gates).
-Implementa os pontos de inspecao e decisao de fluxo do DAG para autocorrecao.
+Conditional Edges and Decision Validators (Routing & Validation Gates).
+Implements the DAG's inspection and flow-decision points for self-correction.
 """
 
 import sys
@@ -26,9 +26,9 @@ def log_hallucination_incident(
     retry_count: int,
 ) -> None:
     """
-    Dead-Letter Queue (DLQ) para Auditoria de Alucinacoes:
-    Persiste o incidente com o rascunho rejeitado, contexto documental e parecer
-    do auditor em JSONL, alimentando o Data Flywheel para DPO e fine-tuning.
+    Dead-Letter Queue (DLQ) for hallucination auditing:
+    Persists the incident (rejected draft, document context, and auditor verdict)
+    to JSONL, feeding a data flywheel for future DPO / fine-tuning.
     """
     try:
         HALLUCINATIONS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -44,40 +44,40 @@ def log_hallucination_incident(
         }
         with open(HALLUCINATIONS_LOG_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps(incident_record, ensure_ascii=False) + "\n")
-        print(f"    [DLQ] Incidente de alucinacao arquivado com sucesso em: {HALLUCINATIONS_LOG_PATH.name}")
+        print(f"    [DLQ] Hallucination incident logged to: {HALLUCINATIONS_LOG_PATH.name}")
     except Exception as err:
-        print(f"    [DLQ Alerta] Falha ao arquivar incidente de alucinacao: {err}")
+        print(f"    [DLQ Warning] Failed to log hallucination incident: {err}")
 
 
 
 def decide_to_generate(state: AgentState) -> str:
     """
-    Decisao Pos-Filtro de Documentos:
-    Verifica se existem dados aprovados na camada Gold para prosseguir com a sintese.
-    Caso contrario, retroalimenta o DAG via 'rewrite_query' ou cai em fallback.
+    Post-document-filter decision:
+    Checks whether approved Gold-layer data exists to proceed with synthesis.
+    Otherwise, loops back through 'rewrite_query' or falls back.
     """
     documents = state.get("documents", [])
     retry_count = state.get("retry_count", 0)
     
     if not documents:
         if retry_count < MAX_RETRIES:
-            print(f"[DECISAO] Nenhum chunk qualificado. Roteando para -> REWRITE_QUERY")
+            print(f"[DECISION] No qualified chunks. Routing to -> REWRITE_QUERY")
             return "rewrite_query"
         else:
-            print(f"[DECISAO] Limite maximo de retentativas atingido ({retry_count}) sem chunks validos. Roteando para -> FALLBACK")
+            print(f"[DECISION] Max retries reached ({retry_count}) with no valid chunks. Routing to -> FALLBACK")
             return "fallback"
     
-    print(f"[DECISAO] Chunks aprovados ({len(documents)}). Roteando para -> GENERATE")
+    print(f"[DECISION] Approved chunks ({len(documents)}). Routing to -> GENERATE")
     return "generate"
 
 
 def grade_generation_v_documents_and_question(state: AgentState) -> str:
     """
-    Auditoria Unificada de Qualidade de Saida (Gate Consolidado com Protecao Anti-Loop):
-    Avalia em UMA UNICA inferencia:
-    1. Grounding (Fidelidade Factual vs Chunks)
-    2. Answer Completeness (Utilidade da resposta)
-    Garante matematicamente que o DAG nunca entre em loop infinito.
+    Unified output quality audit (consolidated gate with anti-loop protection):
+    Evaluates in A SINGLE inference:
+    1. Grounding (factual faithfulness vs. chunks)
+    2. Answer completeness (usefulness of the answer)
+    Guarantees the DAG can never enter an infinite loop.
     """
     generation = state.get("generation", "")
     documents = state.get("documents", [])
@@ -86,12 +86,12 @@ def grade_generation_v_documents_and_question(state: AgentState) -> str:
     generation_attempts = state.get("generation_attempts", 1)
     
     if not documents:
-        print("[AUDITORIA] Sem documentos base: roteando para FALLBACK.")
+        print("[AUDIT] No source documents: routing to FALLBACK.")
         return "fallback"
 
     doc_text = "\n\n".join([f"--- [Pagina {d.metadata.get('page', '?')}] ---\n{d.page_content}" for d in documents])
     
-    print(f"\n[AUDITORIA UNIFICADA DE QUALIDADE] Validando fidelidade factual e utilidade...")
+    print(f"\n[UNIFIED QUALITY AUDIT] Checking factual faithfulness and usefulness...")
     unified_grader = create_unified_quality_grader()
     try:
         res = unified_grader.invoke({
@@ -102,10 +102,10 @@ def grade_generation_v_documents_and_question(state: AgentState) -> str:
         is_grounded = getattr(res, "is_grounded", "yes").lower() == "yes"
         is_useful = getattr(res, "is_useful", "yes").lower() == "yes"
         audit_summary = getattr(res, "audit_summary", "")
-        print(f"    [Grounding: {'100% FIEL' if is_grounded else 'ALUCINACAO DETECTADA'}] [Utilidade: {'UTIL' if is_useful else 'INSUFICIENTE'}]")
-        print(f"    Veredito do Auditor: {audit_summary}")
+        print(f"    [Grounding: {'100% FAITHFUL' if is_grounded else 'HALLUCINATION DETECTED'}] [Usefulness: {'USEFUL' if is_useful else 'INSUFFICIENT'}]")
+        print(f"    Auditor verdict: {audit_summary}")
     except Exception as e:
-        print(f"    Erro na auditoria unificada: {e}. Prosseguindo por fallback seguro.")
+        print(f"    Unified audit error: {e}. Proceeding via safe fallback.")
         is_grounded = True
         is_useful = True
 
@@ -117,29 +117,29 @@ def grade_generation_v_documents_and_question(state: AgentState) -> str:
             audit_summary=audit_summary,
             retry_count=retry_count,
         )
-        # Se for a 1ª tentativa no mesmo conjunto de chunks e temos margem no DAG
+        # First attempt on this chunk set and the DAG still has retry budget
         if generation_attempts < 2 and retry_count < MAX_RETRIES:
-            print(f"    [!] Reprovado no Gate de Grounding (Tentativa {generation_attempts}) -> Retentando geracao com ancoragem reforcada.")
+            print(f"    [!] Failed the Grounding Gate (attempt {generation_attempts}) -> Retrying generation with reinforced grounding.")
             return "not_grounded"
         
-        # Se já falhou mais de uma vez nos mesmos chunks, os chunks não possuem o fato necessário!
-        # Roteia para REWRITE_QUERY para forçar a busca de novos chunks
+        # Already failed more than once on the same chunks: they lack the required fact!
+        # Route to REWRITE_QUERY to force retrieval of new chunks
         if retry_count < MAX_RETRIES:
-            print("    [!] Chunks atuais insuficientes para ancoragem factual sem alucinacao. Roteando para -> REWRITE_QUERY para buscar novas evidencias.")
+            print("    [!] Current chunks are insufficient for hallucination-free grounding. Routing to -> REWRITE_QUERY to fetch new evidence.")
             return "not_useful"
             
-        # Esgotou o limite global de retentativas do DAG: previne entrega de alucinação
-        print("    [!] Limite de retentativas do DAG esgotado sem ancoragem -> Roteando para FALLBACK (Abstencao).")
+        # Global DAG retry limit exhausted: prevent delivering a hallucination
+        print("    [!] DAG retry limit exhausted without grounding -> Routing to FALLBACK (abstention).")
         return "fallback"
 
     if not is_useful:
         if retry_count < MAX_RETRIES:
-            print("    [!] Reprovado no Gate de Utilidade -> Roteando para REWRITE_QUERY.")
+            print("    [!] Failed the Usefulness Gate -> Routing to REWRITE_QUERY.")
             return "not_useful"
         else:
-            print("    [!] Resposta inconclusiva apos limite de retentativas -> Roteando para FALLBACK.")
+            print("    [!] Answer still inconclusive after retry limit -> Routing to FALLBACK.")
             return "fallback"
 
-    print("    [OK] Aprovado em todos os gates -> Roteando para END.")
+    print("    [OK] Passed all gates -> Routing to END.")
     return "useful"
 

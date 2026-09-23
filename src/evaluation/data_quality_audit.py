@@ -1,10 +1,10 @@
 """
-Modulo de Auditoria de Qualidade e Reconciliacao entre Camadas (Data Quality & Lineage Audit).
-Executa testes formais de integridade entre as camadas:
-1. Reconciliacao Bronze <-> Silver (Contrato de Extracao e Perda de Informacao)
-2. Reconciliacao Silver <-> Gold (Contrato de Particionamento, Cobertura e Vetorizacao)
-3. Reconciliacao Silver <-> Training (Contrato de Linhagem e Ground Truth)
-Gera o relatorio executivo 'reports/data_quality_audit.md'.
+Data Quality & Cross-Layer Reconciliation module (Data Quality & Lineage Audit).
+Runs formal integrity tests across the layers:
+1. Bronze <-> Silver reconciliation (Extraction and Information Loss contract)
+2. Silver <-> Gold reconciliation (Chunking, Coverage and Vectorization contract)
+3. Silver <-> Training reconciliation (Lineage and Ground Truth contract)
+Generates the executive report 'reports/data_quality_audit.md'.
 """
 
 import sys
@@ -39,15 +39,15 @@ AUDIT_REPORT_MD = REPORTS_DIR / "data_quality_audit.md"
 
 
 def audit_bronze_to_silver() -> Dict[str, Any]:
-    """Audita a fidelidade da extracao entre Bronze (PDF) e Silver (JSONL)."""
-    print("[*] Auditando Camada Bronze (PDF) vs Camada Silver (JSONL)...")
+    """Audits extraction fidelity between Bronze (PDF) and Silver (JSONL)."""
+    print("[*] Auditing Bronze Layer (PDF) vs Silver Layer (JSONL)...")
     
-    # 1. Checagem Bronze
+    # 1. Bronze check
     pdf_reader = pypdf.PdfReader(str(OPINION_PDF_PATH))
     bronze_page_count = len(pdf_reader.pages)
     bronze_size_bytes = OPINION_PDF_PATH.stat().st_size
 
-    # 2. Checagem Silver
+    # 2. Silver check
     silver_records = []
     with open(SILVER_CORPUS_JSONL, "r", encoding="utf-8") as f:
         for line in f:
@@ -57,18 +57,18 @@ def audit_bronze_to_silver() -> Dict[str, Any]:
     silver_page_count = len(silver_records)
     silver_chars = sum(r["metadata"]["char_count"] for r in silver_records)
 
-    # 3. Testes de Integridade
+    # 3. Integrity tests
     page_parity = (bronze_page_count == silver_page_count)
     
-    # Checagem de Hashes Unicos (Detectar duplicatas de pagina)
+    # Unique hash check (detect duplicate pages)
     hashes = [r["metadata"]["content_checksum"] for r in silver_records]
     unique_hashes = len(set(hashes))
     no_hash_collisions = (unique_hashes == silver_page_count)
 
-    # Checagem de caracteres nulos ou corrompidos
+    # Check for null or corrupted characters
     corrupted_count = sum(1 for r in silver_records if "\x00" in r["content"] or "\ufffd" in r["content"])
 
-    # Checagem de paginas em branco
+    # Check for blank pages
     blank_pages = [r["page"] for r in silver_records if len(r["content"].strip()) < 50]
 
     return {
@@ -86,18 +86,18 @@ def audit_bronze_to_silver() -> Dict[str, Any]:
 
 
 def audit_silver_to_gold(silver_records: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Audita o particionamento, cobertura e embeddings entre Silver e Gold (ChromaDB)."""
-    print("[*] Auditando Camada Silver (JSONL) vs Camada Gold (Vector Lake)...")
+    """Audits chunking, coverage and embeddings between Silver and Gold (ChromaDB)."""
+    print("[*] Auditing Silver Layer (JSONL) vs Gold Layer (Vector Lake)...")
     
     vector_store = load_or_build_gold_vectorstore()
     gold_count = vector_store._collection.count()
     
-    # Extrair metadados da colecao ChromaDB
+    # Extract metadata from the ChromaDB collection
     all_data = vector_store._collection.get(include=["metadatas", "documents"])
     metadatas = all_data.get("metadatas", [])
     documents = all_data.get("documents", [])
 
-    # 1. Cobertura de Paginas da Silver na Gold
+    # 1. Coverage of Silver pages in Gold
     pages_in_gold = set()
     chunks_with_valid_id = 0
 
@@ -112,13 +112,13 @@ def audit_silver_to_gold(silver_records: List[Dict[str, Any]]) -> Dict[str, Any]
     missing_pages_in_gold = silver_pages - pages_in_gold
     page_coverage_pct = round((len(pages_in_gold) / len(silver_pages)) * 100, 2)
 
-    # 2. Distribuicao do Tamanho dos Chunks
+    # 2. Chunk size distribution
     chunk_lengths = [len(doc) for doc in documents]
     avg_chunk_size = sum(chunk_lengths) / len(chunk_lengths) if chunk_lengths else 0
     min_chunk_size = min(chunk_lengths) if chunk_lengths else 0
     max_chunk_size = max(chunk_lengths) if chunk_lengths else 0
 
-    # 3. Teste de Busca Vetorial / Resposta do Modelo de Embedding
+    # 3. Vector search / embedding model response test
     test_query = "Sherman Act Section 2 monopoly"
     sample_retrieval = vector_store.as_retriever(search_kwargs={"k": 3}).invoke(test_query)
     search_functional = (len(sample_retrieval) == 3)
@@ -139,8 +139,8 @@ def audit_silver_to_gold(silver_records: List[Dict[str, Any]]) -> Dict[str, Any]
 
 
 def audit_training_reconciliation(silver_records: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Audita a linhagem e conformidade dos datasets de treinamento contra a Camada Silver."""
-    print("[*] Auditando Camada Silver vs Camada de Treinamento (SFT / CoT / DPO)...")
+    """Audits lineage and compliance of the training datasets against the Silver Layer."""
+    print("[*] Auditing Silver Layer vs Training Layer (SFT / CoT / DPO)...")
     
     cot_file = PROJECT_ROOT / "data" / "training" / "train_cot.jsonl"
     dpo_file = PROJECT_ROOT / "data" / "training" / "preference_dataset.jsonl"
@@ -159,14 +159,14 @@ def audit_training_reconciliation(silver_records: List[Dict[str, Any]]) -> Dict[
                 if line.strip():
                     dpo_samples.append(json.loads(line))
 
-    # Teste de Linhagem: Checar se as citacoes de pagina dos dados de treino batem com as paginas da Silver
+    # Lineage test: check that page citations in the training data match Silver pages
     silver_page_numbers = set(r["page"] for r in silver_records)
     valid_citations = 0
     total_cot_samples = len(cot_samples)
 
     for s in cot_samples:
         output_text = s.get("output", "")
-        # Extrair [Pag. X]
+        # Extract [Pag. X]
         import re
         match = re.search(r"\[P[aá]g\.?\s*(\d+)", output_text, re.IGNORECASE)
         if match:
@@ -187,86 +187,86 @@ def audit_training_reconciliation(silver_records: List[Dict[str, Any]]) -> Dict[
 def run_full_data_audit():
     console.print(
         Panel.fit(
-            "[bold cyan]AUDITORIA FORMAL DE QUALIDADE DE DADOS E RECONCILIACAO ENTRE CAMADAS[/bold cyan]\n"
+            "[bold cyan]FORMAL DATA QUALITY AUDIT AND CROSS-LAYER RECONCILIATION[/bold cyan]\n"
             "[white]Data Contract Testing: Bronze (Raw) <-> Silver (Processed) <-> Gold (Vector Lake)\n"
-            "Conformidade de Linhagem, Cobertura, Integridade de Hashes e Inferencia[/white]",
+            "Lineage Compliance, Coverage, Hash Integrity and Inference[/white]",
             border_style="cyan"
         )
     )
 
-    # 1. Executar Auditorias
+    # 1. Run audits
     b2s = audit_bronze_to_silver()
     s2g = audit_silver_to_gold(b2s["silver_records"])
     train_audit = audit_training_reconciliation(b2s["silver_records"])
 
-    # 2. Exibir Tabela de Reconciliação
-    table = Table(title="Scorecard de Auditoria de Dados e Contratos de Camada", border_style="bright_blue")
-    table.add_column("Teste de Qualidade de Dados", style="cyan")
-    table.add_column("Camadas", style="magenta")
-    table.add_column("Esperado", style="yellow")
-    table.add_column("Obtido", style="green")
-    table.add_column("Veredito", style="bold green")
+    # 2. Display reconciliation table
+    table = Table(title="Data Audit and Layer Contract Scorecard", border_style="bright_blue")
+    table.add_column("Data Quality Test", style="cyan")
+    table.add_column("Layers", style="magenta")
+    table.add_column("Expected", style="yellow")
+    table.add_column("Actual", style="green")
+    table.add_column("Verdict", style="bold green")
 
-    # Linhas de Testes
+    # Test rows
     table.add_row(
-        "Paridade de Paginas (Page Parity)",
+        "Page Parity",
         "Bronze <-> Silver",
-        f"{b2s['bronze_pages']} paginas",
-        f"{b2s['silver_pages']} paginas",
+        f"{b2s['bronze_pages']} pages",
+        f"{b2s['silver_pages']} pages",
         "[bold green]PASS (100%)[/bold green]" if b2s["page_parity"] else "[bold red]FAIL[/bold red]"
     )
     table.add_row(
-        "Colisoes de Hash SHA-256",
+        "SHA-256 Hash Collisions",
         "Silver",
-        "0 colisoes (286 unicos)",
-        f"{b2s['unique_hashes']} unicos",
-        "[bold green]PASS (0 Colisoes)[/bold green]" if b2s["no_hash_collisions"] else "[bold red]FAIL[/bold red]"
+        "0 collisions (286 unique)",
+        f"{b2s['unique_hashes']} unique",
+        "[bold green]PASS (0 Collisions)[/bold green]" if b2s["no_hash_collisions"] else "[bold red]FAIL[/bold red]"
     )
     table.add_row(
-        "Integridade de Encoding (Null Bytes)",
+        "Encoding Integrity (Null Bytes)",
         "Silver",
-        "0 paginas corrompidas",
-        f"{b2s['corrupted_pages']} corrompidas",
-        "[bold green]PASS (Zero Falhas)[/bold green]" if b2s["corrupted_pages"] == 0 else "[bold red]FAIL[/bold red]"
+        "0 corrupted pages",
+        f"{b2s['corrupted_pages']} corrupted",
+        "[bold green]PASS (Zero Failures)[/bold green]" if b2s["corrupted_pages"] == 0 else "[bold red]FAIL[/bold red]"
     )
     table.add_row(
-        "Linhagem Estrita de IDs de Chunks",
+        "Strict Chunk ID Lineage",
         "Silver <-> Gold",
-        "100% chunks com prefixo doc1033",
+        "100% chunks with doc1033 prefix",
         f"{s2g['chunks_with_valid_id']}/{s2g['gold_total_chunks']}",
-        "[bold green]PASS (100% Rastreavel)[/bold green]" if s2g["all_chunks_have_lineage_id"] else "[bold red]FAIL[/bold red]"
+        "[bold green]PASS (100% Traceable)[/bold green]" if s2g["all_chunks_have_lineage_id"] else "[bold red]FAIL[/bold red]"
     )
     table.add_row(
-        "Cobertura de Paginas no Vector Lake",
+        "Page Coverage in Vector Lake",
         "Silver <-> Gold",
-        "100% das 286 paginas indexadas",
+        "100% of 286 pages indexed",
         f"{s2g['page_coverage_pct']}% ({s2g['pages_covered_in_gold']}/286)",
-        "[bold green]PASS (100% Cobertura)[/bold green]" if s2g["page_coverage_pct"] >= 99.0 else "[bold yellow]WARN[/bold yellow]"
+        "[bold green]PASS (100% Coverage)[/bold green]" if s2g["page_coverage_pct"] >= 99.0 else "[bold yellow]WARN[/bold yellow]"
     )
     table.add_row(
-        "Tamanho Calibrado de Chunks",
+        "Calibrated Chunk Size",
         "Gold",
-        "Media ~600-900 chars",
-        f"Media: {s2g['avg_chunk_size']} chars",
-        "[bold green]PASS (Calibrado)[/bold green]"
+        "Average ~600-900 chars",
+        f"Average: {s2g['avg_chunk_size']} chars",
+        "[bold green]PASS (Calibrated)[/bold green]"
     )
     table.add_row(
-        "Reconciliacao de Ground Truth (SFT)",
+        "Ground Truth Reconciliation (SFT)",
         "Silver <-> Training",
-        "100% citacoes existem na Silver",
-        f"{train_audit['citation_validity_pct']}% conformidade",
-        "[bold green]PASS (Auditado)[/bold green]" if train_audit["citation_validity_pct"] >= 95.0 else "[bold yellow]WARN[/bold yellow]"
+        "100% of citations exist in Silver",
+        f"{train_audit['citation_validity_pct']}% compliance",
+        "[bold green]PASS (Audited)[/bold green]" if train_audit["citation_validity_pct"] >= 95.0 else "[bold yellow]WARN[/bold yellow]"
     )
 
     console.print("\n")
     console.print(table)
 
-    # 3. Gerar Relatório Markdown
+    # 3. Generate Markdown report
     generate_audit_markdown(b2s, s2g, train_audit)
 
 
 def generate_audit_markdown(b2s, s2g, train_audit):
-    """Grava o relatorio de auditoria em reports/data_quality_audit.md."""
+    """Writes the audit report to reports/data_quality_audit.md."""
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     md_content = f"""# 🛡️ Relatório de Auditoria de Qualidade de Dados & Reconciliação entre Camadas
@@ -327,7 +327,7 @@ O pipeline atende a **100% dos requisitos de governança de dados**, demonstrand
     with open(AUDIT_REPORT_MD, "w", encoding="utf-8") as f:
         f.write(md_content)
 
-    console.print(f"\n[bold green][OK] Relatorio formal de auditoria gerado em: {AUDIT_REPORT_MD.name}![/bold green]")
+    console.print(f"\n[bold green][OK] Formal audit report generated at: {AUDIT_REPORT_MD.name}![/bold green]")
 
 
 if __name__ == "__main__":

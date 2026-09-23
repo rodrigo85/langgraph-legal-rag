@@ -1,5 +1,5 @@
 """
-Interface Interativa CLI para o Agente RAG Autocorretivo (DOJ vs. Google).
+Interactive CLI for the self-correcting RAG agent (DOJ v. Google).
 """
 
 import sys
@@ -25,16 +25,16 @@ console = Console()
 def run_cli():
     console.print(
         Panel.fit(
-            "[bold cyan]Agente RAG Autocorretivo (Self-RAG) - U.S. v. Google[/bold cyan]\n"
-            "[white]Sentenca Judicial de Merito do Juiz Amit Mehta (Doc 1033 - 286 paginas)\n"
-            "Arquitetura: LangGraph + ChromaDB + Ollama (Local)[/white]",
+            "[bold cyan]Self-Correcting RAG Agent (Self-RAG) - U.S. v. Google[/bold cyan]\n"
+            "[white]Judge Amit Mehta's Memorandum Opinion on liability (Doc 1033 - 286 pages)\n"
+            "Architecture: LangGraph + ChromaDB + Ollama (Local)[/white]",
             border_style="cyan",
         )
     )
 
-    console.print("[dim]Compilando o grafo de estados...[/dim]")
+    console.print("[dim]Compiling the state graph...[/dim]")
     app = build_graph()
-    console.print("[bold green][OK] Grafo carregado e pronto para consultas![/bold green]\n")
+    console.print("[bold green][OK] Graph loaded and ready for queries![/bold green]\n")
 
     examples = [
         "Qual era a porcentagem da receita que o Google repassava para a Apple no contrato ISA em 2016 e anos seguintes?",
@@ -67,12 +67,12 @@ def run_cli():
                 "citations": [],
             }
 
-            console.print("\n[bold cyan]=== INICIANDO EXECUCAO DO GRAFO ===[/bold cyan]")
+            console.print("\n[bold cyan]=== STARTING GRAPH EXECUTION ===[/bold cyan]")
             
             final_state = dict(initial_state)
             for output in app.stream(initial_state):
                 for node_name, state_update in output.items():
-                    console.print(f"[bold magenta]>>> No Concluido: {node_name}[/bold magenta]")
+                    console.print(f"[bold magenta]>>> Node completed: {node_name}[/bold magenta]")
                     final_state.update(state_update)
             
             console.print("\n" + "=" * 60)
@@ -87,7 +87,7 @@ def run_cli():
             console.print("\n[bold yellow]Interrompido pelo usuario.[/bold yellow]")
             break
         except Exception as e:
-            console.print(f"[bold red]Erro durante a execucao: {e}[/bold red]")
+            console.print(f"[bold red]Error during execution: {e}[/bold red]")
 
 
 if __name__ == "__main__":

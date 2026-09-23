@@ -1,7 +1,7 @@
 """
 Generator Chain.
-Gera a resposta investigativa final estritamente ancorada nos fatos dos documentos recuperados,
-com citacao mandatoria das paginas da sentenca do Juiz Amit Mehta.
+Generates the final investigative answer strictly grounded in the retrieved documents,
+with mandatory page citations from Judge Amit Mehta's opinion.
 """
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -16,7 +16,7 @@ from langchain_core.runnables import RunnableLambda
 
 
 def sanitize_response(text: str) -> str:
-    """Higieniza o texto gerado, expurgando quaisquer caracteres CJK residuais."""
+    """Sanitizes the generated text, stripping any residual CJK characters."""
     lines = text.split("\n")
     valid_lines = []
     for line in lines:
@@ -31,7 +31,7 @@ def sanitize_response(text: str) -> str:
 
 def create_generator():
     """
-    Cria a chain de sintese de resposta fundamentada.
+    Builds the grounded answer synthesis chain.
     """
     llm = ChatOllama(
         model=OLLAMA_LLM_MODEL,

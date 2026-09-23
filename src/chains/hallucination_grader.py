@@ -1,7 +1,7 @@
 """
 Hallucination Grader Chain.
-Audita se cada afirmacao factual contida na resposta gerada pelo LLM
-possui respaldo direto nos documentos recuperados (Grounding Check).
+Audits whether every factual claim in the LLM-generated answer
+is directly supported by the retrieved documents (Grounding Check).
 """
 
 from typing import Literal
@@ -24,7 +24,7 @@ class GradeHallucinations(BaseModel):
 
 def create_hallucination_grader():
     """
-    Cria a chain de deteccao de alucinacoes factuais.
+    Builds the factual hallucination detection chain.
     """
     llm = ChatOllama(
         model=OLLAMA_LLM_MODEL,
@@ -68,8 +68,8 @@ class UnifiedQualityAudit(BaseModel):
 
 def create_unified_quality_grader():
     """
-    Cria auditor unificado que valida Grounding e Utilidade em uma unica inferencia.
-    Economiza 50% do tempo de auditoria final.
+    Builds a unified auditor that checks grounding and usefulness in a single inference.
+    Saves 50% of the final audit time.
     """
     llm = ChatOllama(
         model=OLLAMA_LLM_MODEL,
