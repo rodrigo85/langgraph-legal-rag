@@ -137,7 +137,7 @@ Em sistemas tradicionais, a alucinação barrada simplesmente sumiria da memóri
 
 ### 5.1 O Que Foi Construído
 
-Implementamos um portão de observabilidade em [`src/agent/edges.py`](../src/agent/edges.py) e [`src/config.py`](../src/config.py):
+Implementamos um portão de observabilidade em [`src/agent/edges.py`](../src/legal_rag/agent/edges.py) e [`src/config.py`](../src/legal_rag/config.py):
 
 ```python
 def log_hallucination_incident(
@@ -204,7 +204,7 @@ A investigação apontou para duas causas simultâneas:
    * Como o gerador era forçado a responder usando apenas esses 2 chunks, ele tentava deduzir a resposta a partir do Dr. Ramaswamy.
    * O auditor rejeitava com razão, e o grafo mandava o gerador tentar de novo **com os mesmos 2 chunks incompletos**.
 
-### 6.2 A Solução Arquitetural Definitiva (`commit dd3562f`)
+### 6.2 A Solução Arquitetural Definitiva (`commit 7d16ab1`)
 
 Implementamos uma máquina de estados com **garantia matemática contra loops**:
 
@@ -225,7 +225,7 @@ flowchart TD
 1. **`generation_attempts` no `AgentState`:** O nó `generate` rastreia quantas vezes tentou sintetizar no mesmo conjunto de chunks.
 2. **Escape Inteligente de Chunks:** Na 1ª falha, permite 1 re-tentativa com instrução reforçada de literalidade. Na 2ª falha com os **mesmos chunks**, o DAG reconhece que os chunks são insuficientes e força a rota para `rewrite_query` para buscar novos trechos.
 3. **Nó de Abstenção Pericial (`fallback_node`):** Se as retentativas globais forem esgotadas sem ancoragem 100%, o sistema não alucina: ativa o nó de fallback com parecer forense de evidência inconclusiva.
-4. **Blindagem no Prompt do Gerador:** Inclusão de regra explícita no sistema em [`src/chains/generator.py`](../src/chains/generator.py) proibindo associar executivos de outras empresas como se fossem da Google.
+4. **Blindagem no Prompt do Gerador:** Inclusão de regra explícita no sistema em [`src/chains/generator.py`](../src/legal_rag/chains/generator.py) proibindo associar executivos de outras empresas como se fossem da Google.
 
 ---
 
