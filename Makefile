@@ -1,50 +1,86 @@
-.PHONY: help install bronze silver gold pipeline specialize evolution test benchmark run clean
+.PHONY: help install lint format test test-integration bronze silver gold pipeline specialize evolution benchmark audit run api up up-azure index down logs clean
 
 help:
-	@echo "Available commands (data pipeline and RAG agent):"
-	@echo "  make install      - Install all dependencies (run inside a virtual environment)"
-	@echo "  make bronze       - Raw ingestion (download the court PDFs into data/raw)"
-	@echo "  make silver       - Parsing, cleaning and lineage metadata (data/processed)"
-	@echo "  make gold         - Chunking and idempotent indexing into ChromaDB"
-	@echo "  make pipeline     - Run the full data pipeline (Bronze -> Silver -> Gold)"
-	@echo "  make specialize   - Generate datasets and register the Modelfile-specialized models in Ollama"
-	@echo "  make evolution    - Run the 3-generation A/B benchmark and write the evolution report"
-	@echo "  make test         - Run the test suite (requires Ollama and the Gold index)"
-	@echo "  make benchmark    - Run the Naive RAG vs Self-RAG benchmark"
-	@echo "  make run          - Start the interactive CLI"
-	@echo "  make clean        - Remove Python caches"
+	@echo "Development"
+	@echo "  make install           Install the package with all extras (run inside a virtualenv)"
+	@echo "  make lint | format     Ruff lint / format"
+	@echo "  make test              Unit tests (no Ollama, no Docker)"
+	@echo "  make test-integration  Integration tests (requires Ollama and an indexed Gold layer)"
+	@echo "Data pipeline"
+	@echo "  make pipeline          Bronze (download) -> Silver (parse) -> Gold (index)"
+	@echo "  make specialize        Generate datasets and register the Modelfile-specialized models in Ollama"
+	@echo "  make evolution         3-generation A/B benchmark and evolution report"
+	@echo "  make benchmark         Naive RAG vs Self-RAG benchmark"
+	@echo "  make audit             Cross-layer data quality audit"
+	@echo "Run"
+	@echo "  make run               Interactive CLI"
+	@echo "  make api               FastAPI on http://localhost:8000/docs"
+	@echo "Local production simulation (Docker)"
+	@echo "  make up                API + pgvector + LocalStack S3 + Jaeger (AWS-like)"
+	@echo "  make up-azure          Same stack with the DLQ on Azurite Blob (Azure-like)"
+	@echo "  make index             Build the Gold layer inside pgvector"
+	@echo "  make logs | down       Follow API logs / stop the stack"
 
 install:
-	pip install -r requirements-dev.txt
+	pip install -e ".[dev]"
 
-bronze:
-	python src/pipeline/downloader.py
+lint:
+	ruff check src tests
 
-silver:
-	python src/pipeline/parser.py
-
-gold:
-	python src/pipeline/indexer.py
-
-pipeline: bronze silver gold
-	@echo "[OK] Data pipeline finished."
-
-specialize:
-	python src/training/dataset_generator.py
-	python src/training/register_models.py
-
-evolution:
-	python src/evaluation/eval_3_generations.py
+format:
+	ruff format src tests
 
 test:
-	python -m pytest tests -v -s
+	pytest -q
+
+test-integration:
+	pytest -q -m integration
+
+bronze:
+	python -m legal_rag.pipeline.downloader
+
+silver:
+	python -m legal_rag.pipeline.parser
+
+gold:
+	python -m legal_rag.pipeline.indexer
+
+pipeline: bronze silver gold
+
+specialize:
+	python -m legal_rag.training.dataset_generator
+	python -m legal_rag.training.register_models
+
+evolution:
+	python -m legal_rag.evaluation.eval_3_generations
 
 benchmark:
-	python src/evaluation/benchmark.py
+	python -m legal_rag.evaluation.benchmark
+
+audit:
+	python -m legal_rag.evaluation.data_quality_audit
 
 run:
-	python src/cli.py
+	legal-rag
+
+api:
+	legal-rag-api
+
+up:
+	docker compose up -d --build
+
+up-azure:
+	DLQ_BACKEND=azure_blob docker compose up -d --build
+
+index:
+	docker compose --profile jobs run --rm indexer
+
+logs:
+	docker compose logs -f api
+
+down:
+	docker compose down
 
 clean:
 	find . -name __pycache__ -type d -not -path "./.venv/*" -prune -exec rm -rf {} +
-	rm -rf .pytest_cache
+	rm -rf .pytest_cache .ruff_cache

@@ -1,0 +1,39 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. No secrets belong here.
+
+subscription_id = "00000000-0000-0000-0000-000000000000"
+project_name    = "legal-rag"
+environment     = "prod"
+location        = "eastus2"
+
+# Network
+vnet_address_space         = "10.40.0.0/16"
+container_apps_subnet_cidr = "10.40.0.0/23"
+postgres_subnet_cidr       = "10.40.2.0/24"
+
+# Image pushed to the ACR created by this module
+image_name = "legal-rag"
+image_tag  = "1.0.0"
+
+# Container App sizing
+container_cpu    = 1
+container_memory = "2Gi"
+min_replicas     = 1
+max_replicas     = 5
+
+# Azure OpenAI deployments (deployment names become AZURE_OPENAI_*_DEPLOYMENT)
+openai_chat_deployment_name  = "gpt-4o-mini"
+openai_chat_model            = { name = "gpt-4o-mini", version = "2024-07-18" }
+openai_embed_deployment_name = "text-embedding-3-small"
+openai_embed_model           = { name = "text-embedding-3-small", version = "1" }
+openai_deployment_sku        = "Standard"
+
+# PostgreSQL Flexible Server
+postgres_sku_name          = "GP_Standard_D2ds_v5"
+postgres_high_availability = false
+
+otel_enabled = false
+
+tags = {
+  CostCenter = "legal-ai"
+  Owner      = "platform-team"
+}

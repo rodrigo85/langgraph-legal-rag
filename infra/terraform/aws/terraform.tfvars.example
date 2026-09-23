@@ -1,0 +1,39 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. No secrets belong here.
+
+project_name = "legal-rag"
+environment  = "prod"
+aws_region   = "us-east-1"
+
+# Bring your own network
+vpc_id             = "vpc-0123456789abcdef0"
+public_subnet_ids  = ["subnet-0aaaaaaaaaaaaaaaa", "subnet-0bbbbbbbbbbbbbbbb"]
+private_subnet_ids = ["subnet-0cccccccccccccccc", "subnet-0dddddddddddddddd"]
+
+allowed_ingress_cidrs = ["0.0.0.0/0"]
+acm_certificate_arn   = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+
+# Image pushed to the ECR repository created by this module
+image_tag = "1.0.0"
+
+# Bedrock models (verify model access / inference profiles in your region)
+bedrock_llm_model_id   = "anthropic.claude-opus-5"
+bedrock_embed_model_id = "amazon.titan-embed-text-v2:0"
+
+# Sizing
+task_cpu                 = 1024
+task_memory              = 2048
+desired_count            = 2
+enable_autoscaling       = true
+autoscaling_min_capacity = 2
+autoscaling_max_capacity = 6
+
+db_instance_class      = "db.t4g.medium"
+db_multi_az            = true
+db_deletion_protection = true
+
+otel_enabled = false
+
+tags = {
+  CostCenter = "legal-ai"
+  Owner      = "platform-team"
+}

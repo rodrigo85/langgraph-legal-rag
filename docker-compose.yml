@@ -1,0 +1,117 @@
+# Local simulation of the production topology, at zero cloud cost.
+#
+#   api        -> FastAPI container          (ECS Fargate   | Azure Container Apps)
+#   postgres   -> PostgreSQL 16 + pgvector   (RDS           | PostgreSQL Flexible Server)
+#   localstack -> S3 emulator for the DLQ    (Amazon S3)
+#   azurite    -> Blob emulator for the DLQ  (Azure Blob Storage)
+#   jaeger     -> OpenTelemetry traces       (ADOT/CloudWatch | Azure Monitor)
+#   Ollama runs on the host GPU and stands in for Bedrock / Azure OpenAI.
+#
+# Usage:
+#   docker compose up -d                              # AWS-like: DLQ on S3 (LocalStack)
+#   DLQ_BACKEND=azure_blob docker compose up -d       # Azure-like: DLQ on Blob (Azurite)
+#   docker compose --profile jobs run --rm indexer    # build the Gold layer in pgvector
+
+x-app-env: &app-env
+  APP_HOME: /app
+  LLM_PROVIDER: ollama
+  EMBEDDING_PROVIDER: ollama
+  OLLAMA_BASE_URL: http://host.docker.internal:11434
+  VECTOR_STORE: pgvector
+  PGVECTOR_DSN: postgresql+psycopg://rag:rag@postgres:5432/rag
+  DLQ_BACKEND: ${DLQ_BACKEND:-s3}
+  DLQ_S3_BUCKET: legal-rag-dlq
+  AWS_ENDPOINT_URL: http://localstack:4566
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  # Azurite's well-known development account (public, emulator only)
+  AZURE_STORAGE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+  DLQ_AZURE_CONTAINER: legal-rag-dlq
+  LOG_FORMAT: json
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: legal-rag:local
+    environment:
+      <<: *app-env
+      API_KEY: ${API_KEY:-local-dev-key}
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      azurite:
+        condition: service_started
+      jaeger:
+        condition: service_started
+    restart: unless-stopped
+
+  indexer:
+    image: legal-rag:local
+    profiles: ["jobs"]
+    environment: *app-env
+    command: ["python", "-m", "legal_rag.pipeline.indexer"]
+    volumes:
+      - ./data:/app/data:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: rag
+      POSTGRES_PASSWORD: rag
+      POSTGRES_DB: rag
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag -d rag"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  localstack:
+    image: localstack/localstack:4.0
+    environment:
+      SERVICES: s3
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./docker/localstack/init-s3.sh:/etc/localstack/init/ready.d/init-s3.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal s3api head-bucket --bucket legal-rag-dlq"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.34.0
+    command: ["azurite-blob", "--blobHost", "0.0.0.0", "--skipApiVersionCheck"]
+    ports:
+      - "10000:10000"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # UI
+      - "4318:4318"     # OTLP/HTTP
+
+volumes:
+  pgdata:

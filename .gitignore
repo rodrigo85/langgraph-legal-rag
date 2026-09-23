@@ -37,3 +37,10 @@ data/processed/
 *.egg-info/
 build/
 dist/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
